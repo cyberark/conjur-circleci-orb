@@ -17,7 +17,7 @@ if (params.MODE == "PROMOTE") {
     // Anything added to assetDirectory will be attached to the Github Release
 
     //Note: assetDirectory is on the infrapool agent, not the local Jenkins agent.
-    infrapool.agentSh "./bin/promote.sh ${assetDirectory} ${targetVersion}"
+    infrapool.agentSh "summon ./bin/promote.sh ${assetDirectory} ${targetVersion}"
   }
   release.copyEnterpriseRelease(params.VERSION_TO_PROMOTE)
   return
