@@ -1,4 +1,5 @@
 #!/usr/bin/env groovy
+@Library("product-pipelines-shared-library") _
 
 // Automated release, promotion and dependencies
 properties([
@@ -70,6 +71,23 @@ pipeline {
       steps {
         script {
           updateVersion(infrapool, "CHANGELOG.md", "${BUILD_NUMBER}")
+        }
+      }
+    }
+    stage('Code Coverage') {
+      steps {
+        script {
+          infrapool.agentSh './bin/coverage.sh'
+          infrapool.agentStash name: 'junit-xml', includes: 'output/*.xml'
+        }
+      }
+      post {
+        always {
+          unstash 'junit-xml'
+          junit 'output/junit.xml'
+          cobertura autoUpdateHealth: false, autoUpdateStability: false, coberturaReportFile: 'output/coverage.xml', conditionalCoverageTargets: '30, 0, 0', failUnhealthy: false, failUnstable: false, lineCoverageTargets: '30, 0, 0', maxNumberOfBuilds: 0, methodCoverageTargets: '30, 0, 0', onlyStable: false, sourceEncoding: 'ASCII', zoomCoverageChart: false
+          codacy action: 'reportCoverage', filePath: "output/coverage.xml"
+
         }
       }
     }
