@@ -1,5 +1,6 @@
 require 'simplecov'
 require 'simplecov-cobertura'
+require 'stringio'
 
 SimpleCov.command_name 'Unit Tests'
 
