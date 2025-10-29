@@ -20,4 +20,4 @@ COPY . .
 
 ENV COVERAGE=true
 
-RUN chmod +x test/retrieve_secret_unit_test.sh
+RUN chmod +x test/unit/retrieve_secret_unit_test.sh
