@@ -37,7 +37,7 @@ function join_network() {
 # Called automatically on script error (via trap)
 function cleanup() {
   echo "[ERROR] Removing containers due to failure"
-  docker compose -f $COMPOSE_FILE down -v || true
+  docker compose -f "$COMPOSE_FILE" down -v || true
 }
 
 # Runs the CLI configuration script
