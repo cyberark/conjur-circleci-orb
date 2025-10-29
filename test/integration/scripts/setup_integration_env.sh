@@ -39,7 +39,6 @@ function cleanup() {
   echo "[ERROR] Removing containers due to failure"
   docker compose -f $COMPOSE_FILE down -v || true
 }
-trap cleanup ERR
 
 # Runs the CLI configuration script
 function setup_conjur_cli() {
