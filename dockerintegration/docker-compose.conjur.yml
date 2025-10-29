@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  conjur-leader:
+    image: registry.tld/conjur-appliance:5.20.5
+    container_name: conjur-leader-1.mycompany.local
+    hostname: conjur-leader-1.mycompany.local
+    networks:
+      conjur:
+        aliases:
+          - conjur-leader-1.mycompany.local
+    ports:
+      - "443:443"
+      - "444:444"
+      - "5432:5432"
+      - "1999:1999"
+    restart: unless-stopped
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - CONJUR_LOG_LEVEL=debug
+      - CONJUR_HOSTNAME=conjur-leader-1.mycompany.local
+      - CONJUR_ACCOUNT=conjur
+      - CONJUR_ADMIN_PASSWORD=SecretP@ssword1
+    volumes:
+      - ../test/integration/scripts/configure-conjur.sh:/scripts/configure-conjur.sh:ro
+
+  conjur-cli:
+    image: cyberark/conjur-cli:9
+    container_name: conjur-cli
+    networks:
+      conjur:
+    depends_on:
+      - conjur-leader
+    entrypoint: sleep
+    command: infinity
+    environment:
+      - CONJUR_URL=https://conjur-leader-1.mycompany.local
+      - CONJUR_ACCOUNT=conjur
+      - CONJUR_ADMIN_PASSWORD=SecretP@ssword1
+    volumes:
+      - ./Policies:/tmp/Policies:ro
+      - ../test/integration/scripts/configure-cli.sh:/scripts/configure-cli.sh:ro
+
+  circleci-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.circleci-runner
+    container_name: circle-ci-runner
+    networks:
+      conjur:
+    environment:
+      - CIRCLECI_RUNNER_NAME=my-macos-runner2
+      - CIRCLECI_RUNNER_API_AUTH_TOKEN=
+      - CIRCLECI_RESOURCE_CLASS=namespace-poc-doc/poc-doc-resource
+
+networks:
+  conjur:
+    driver: bridge
