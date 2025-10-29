@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# Runs unit tests in a Docker container and generates code coverage for the src/scripts/retrieve_secret.sh script
 set -euo pipefail
 
 OUTPUT_DIR="./output"
