@@ -13,7 +13,7 @@ function load_jwt_policies() {
 }
 
 function set_jwt_variables() {
-  echo "Setting JWT variables in Conjur..."
+  echo "[INFO] Setting JWT values to variables in Conjur"
   conjur variable set -i conjur/authn-jwt/circleci/jwks-uri -v "$JWKS_URI"
   conjur variable set -i conjur/authn-jwt/circleci/issuer -v "$ISSUER"
   conjur variable set -i conjur/authn-jwt/circleci/audience -v "$AUDIENCE"
