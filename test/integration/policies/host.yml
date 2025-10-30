@@ -1,0 +1,17 @@
+- !policy
+  id: circleci
+  body:
+    - !variable
+      id: secretJwtVar
+
+    - !host
+      id: 72974ed5-1055-4b5f-86fd-cddd77e44c01
+      annotations:
+        authn-jwt/circleci/sub: org/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6/project/72974ed5-1055-4b5f-86fd-cddd77e44c01/user/777c6673-2717-4328-b1ff-37a0e7ed8e1e/vcs-origin/github.com/Itso-Dimitrov-CyberArk/CircleCiPocDoc/vcs-ref/refs/heads/main
+        authn/api-key: true
+
+    # Permit host to access variable
+    - !permit
+      role: !host 72974ed5-1055-4b5f-86fd-cddd77e44c01
+      privileges: [ read, execute ]
+      resource: !variable secretJwtVar
