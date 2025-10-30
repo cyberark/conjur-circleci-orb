@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+source "$(dirname "$0")/helpers.sh"
 
 COMPOSE_FILE="dockerIntegration/docker-compose.conjur.yml"
 CONJUR_CLI_CONTAINER="conjur-cli"
@@ -57,8 +58,8 @@ main() {
   setup_environment
   setup_conjur_cli
   configure_jwt
+  inject_conjur_cert_into_yaml
 }
-
 main
 
 echo "[INFO] Integration environment is ready."
