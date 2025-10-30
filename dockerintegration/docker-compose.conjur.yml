@@ -22,6 +22,7 @@ services:
       - CONJUR_HOSTNAME=conjur-leader-1.mycompany.local
       - CONJUR_ACCOUNT=conjur
       - CONJUR_ADMIN_PASSWORD=SecretP@ssword1
+      - CONJUR_AUTHENTICATORS=authn-jwt/circleci
     volumes:
       - ../test/integration/scripts/configure-conjur.sh:/scripts/configure-conjur.sh:ro
 
@@ -38,9 +39,15 @@ services:
       - CONJUR_URL=https://conjur-leader-1.mycompany.local
       - CONJUR_ACCOUNT=conjur
       - CONJUR_ADMIN_PASSWORD=SecretP@ssword1
+      - JWKS_URI=https://oidc.circleci.com/org/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6/.well-known/jwks-pub.json
+      - ISSUER=https://oidc.circleci.com/org/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6
+      - AUDIENCE=1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6
+      - TOKEN_APP_PROPERTY=oidc.circleci.com/project-id
+      - IDENTITY_PATH=circleci
     volumes:
-      - ./Policies:/tmp/Policies:ro
+      - ../test/integration/policies:/tmp/policies:ro
       - ../test/integration/scripts/configure-cli.sh:/scripts/configure-cli.sh:ro
+      - ../test/integration/scripts/configure-jwt.sh:/scripts/configure-jwt.sh:ro
 
   circleci-runner:
     build:
@@ -49,6 +56,9 @@ services:
     container_name: circle-ci-runner
     networks:
       conjur:
+    depends_on:
+      - conjur-leader
+      - conjur-cli
     environment:
       - CIRCLECI_RUNNER_NAME=my-macos-runner2
       - CIRCLECI_RUNNER_API_AUTH_TOKEN=
