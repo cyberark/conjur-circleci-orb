@@ -36,7 +36,3 @@ function inject_conjur_cert_into_yaml() {
 
   echo "Certificate updated in $yaml_file"
 }
-
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  inject_conjur_cert_into_yaml
-fi
