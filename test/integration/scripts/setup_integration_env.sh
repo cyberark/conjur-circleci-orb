@@ -4,7 +4,6 @@ set -euo pipefail
 COMPOSE_FILE="dockerIntegration/docker-compose.conjur.yml"
 CONJUR_CLI_CONTAINER="conjur-cli"
 CONJUR_LEADER_CONTAINER="conjur-leader-1.mycompany.local"
-CONJUR_NETWORK="conjur"
 
 # Create and start all the services from compose file and 
 # Configure Conjur master (sets up admin password, account, and initial settings)
@@ -24,7 +23,7 @@ function join_network() {
     then
         echo "[INFO] Network '${network}' already exists"
     else
-        echo "[WARN] Network '${network}' doesn't exist; creating it"
+        echo "[WARN] Network '${network}' doesn't exist. Creating it"
         docker network create "${network}" > /dev/null
     fi
 
@@ -36,6 +35,11 @@ function join_network() {
 function setup_conjur_cli() {
     echo "[INFO] Configuring Conjur CLI"
     docker exec $CONJUR_CLI_CONTAINER bash /scripts/configure-cli.sh
+}
+
+function configure_jwt() {
+    echo "[INFO] Configuring JWT: loading policies, and setting variables."
+    docker exec $CONJUR_CLI_CONTAINER bash /scripts/configure-jwt.sh
 }
 
 # Removes all containers and volumes for the integration environment
@@ -52,6 +56,7 @@ trap cleanup EXIT
 main() {
   setup_environment
   setup_conjur_cli
+  configure_jwt
 }
 
 main
