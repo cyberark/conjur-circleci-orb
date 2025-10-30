@@ -3,8 +3,6 @@ set -euo pipefail
 source "$(dirname "$0")/helpers.sh"
 
 COMPOSE_FILE="dockerIntegration/docker-compose.conjur.yml"
-CONJUR_CLI_CONTAINER="conjur-cli"
-CONJUR_LEADER_CONTAINER="conjur-leader-1.mycompany.local"
 
 # Create and start all the services from compose file and 
 # Configure Conjur master (sets up admin password, account, and initial settings)
@@ -12,7 +10,7 @@ function setup_environment() {
     echo "[INFO] Start all the services from compose file"
     docker compose -f "$COMPOSE_FILE" up -d
     echo "[INFO] Configuring Conjur master"
-    docker exec $CONJUR_LEADER_CONTAINER bash /scripts/configure-conjur.sh
+    leaderExec bash /scripts/configure-conjur.sh
 }
 
 # Connects a running container to a specified Docker network
@@ -35,12 +33,12 @@ function join_network() {
 # Runs the CLI configuration script
 function setup_conjur_cli() {
     echo "[INFO] Configuring Conjur CLI"
-    docker exec $CONJUR_CLI_CONTAINER bash /scripts/configure-cli.sh
+    cliExec bash /scripts/configure-cli.sh
 }
 
 function configure_jwt() {
     echo "[INFO] Configuring JWT: loading policies, and setting variables."
-    docker exec $CONJUR_CLI_CONTAINER bash /scripts/configure-jwt.sh
+    cliExec bash /scripts/configure-jwt.sh
 }
 
 # Removes all containers and volumes for the integration environment
