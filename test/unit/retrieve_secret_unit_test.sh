@@ -229,7 +229,7 @@ test_urlencode_special_characters() {
 test_install_jq_existing() {
   command -v jq >/dev/null 2>&1 || touch /usr/bin/jq
   InstallJq
-  assertEquals 2 $?
+  assertEquals 0 $?
 }
 
 # Test the `array_secrets` function
