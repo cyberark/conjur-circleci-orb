@@ -14,7 +14,7 @@ oneTimeSetUp() {
   local API_BASE="https://api.github.com"
 
   local CONTENT
-  CONTENT=$(cat test/integration/ci/config.yml)
+  CONTENT=$(cat ./ci/config.yml)
   local ENCODED_CONTENT
   ENCODED_CONTENT=$(echo -n "$CONTENT" | base64 -w 0)
 
@@ -49,6 +49,11 @@ fi
 
 oneTimeTearDown() {
   echo "[TEARDOWN] Cleaning up"
+}
+
+function test_UpliadingTest() {
+    echo "test"
+    assertEquals 1 1
 }
 
 . /usr/bin/shunit2
