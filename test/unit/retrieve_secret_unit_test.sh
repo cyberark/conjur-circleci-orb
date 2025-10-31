@@ -359,5 +359,5 @@ test_fetch_secret_no_secrets() {
 }
 
 
-# Run all the tests
+# Load shUnit2
 . /usr/bin/shunit2

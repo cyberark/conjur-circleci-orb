@@ -1,6 +1,66 @@
 #!/bin/bash
 set -euo pipefail
 
+function get_first_definition_id() {
+  local response
+  response=$(curl -s -L https://circleci.com/api/v2/projects/72974ed5-1055-4b5f-86fd-cddd77e44c01/pipeline-definitions/ \
+    -H 'Circle-Token: ')
+  
+   echo "$response" | jq -r '.items[0].id'
+}
+
+function trigger_circleci_pipeline() {
+  local definition_id="$1"
+  local config_branch="$2"
+  local checkout_branch="$3"
+
+  local response
+  response=$(curl -X POST "https://circleci.com/api/v2/project/circleci/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6/72974ed5-1055-4b5f-86fd-cddd77e44c01/pipeline/run" \
+    -H "Circle-Token: " \
+    -H "Content-Type: application/json" \
+    --data '{"definition_id":"'"${definition_id}"'","config":{"branch":"'"${config_branch}"'"},"checkout":{"branch":"'"${checkout_branch}"'"}}')
+
+    echo "$response" | jq -r '.id'
+}
+
+function get_workflow_id_from_pipeline() {
+  local pipeline_id="$1"
+
+  local response
+  response=$(curl -s -L "https://circleci.com/api/v2/pipeline/${pipeline_id}/workflow" \
+    -H 'Circle-Token: ')
+    echo "$response" | jq -r '.items[0].id'
+}
+
+function wait_for_workflow_complete() {
+  local workflow_id="$1"
+  local max_attempts="$2"
+  local interval="$3"
+  local attempt=1
+  local status=""
+
+  while ((attempt <= max_attempts )); do
+    response=$(curl -s "https://circleci.com/api/v2/workflow/$workflow_id" \
+    -H 'Circle-Token: ')
+
+     status=$(echo "$response" | jq -r '.status')
+     
+    if [[ "$status" == "success" ]]; then
+      echo "Workflow succeeded."
+      return 0
+    elif [[ "$status" == "failed" ]]; then
+      echo "Workflow failed."
+      return 1
+    fi
+
+    ((attempt++))
+    sleep "$interval"
+  done
+
+  echo "Maximum attempts reached without completion."
+  return 124
+}
+
 oneTimeSetUp() {
   echo "[SETUP] Uploading GitHub config.yml"
 
@@ -45,15 +105,22 @@ EOF
   echo "[ERROR] GitHub API upload failed with status: $HTTP_STATUS"
   exit 1
 fi
+
+DEFINITION_ID=$(get_first_definition_id)
+PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
+echo $PIPELINE_ID
+WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
+echo $WORKFLOW_ID
+wait_for_workflow_complete "$WORKFLOW_ID" 60 10
 }
 
 function oneTimeTearDown() {
   echo "[TEARDOWN] Cleaning up"
 }
 
-function test_UpliadingTest() {
-    echo "test"
-    assertEquals 1 1
-}
+# function test_retrieve_single_secret() {
+#     assert pass pass
+# }
 
+# Load shUnit2
 . /usr/bin/shunit2
