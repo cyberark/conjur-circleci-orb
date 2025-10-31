@@ -32,6 +32,10 @@ function get_workflow_id_from_pipeline() {
     echo "$response" | jq -r '.items[0].id'
 }
 
+#TODO function to retrieve job information so I can take the job number and then to get artificat
+#   --url https://circleci.com/api/v2/workflow/260729b9-c07e-48e4-850a-6c544d103546/job \ -> Will return job number per workflow id 
+#  https://circleci.com/api/v2/project/circleci/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6/72974ed5-1055-4b5f-86fd-cddd77e44c01//182/artifacts \ -> Will return artifact per job number
+
 function wait_for_workflow_complete() {
   local workflow_id="$1"
   local max_attempts="$2"
