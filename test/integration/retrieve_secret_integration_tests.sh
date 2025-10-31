@@ -14,7 +14,7 @@ oneTimeSetUp() {
   local API_BASE="https://api.github.com"
 
   local CONTENT
-  CONTENT=$(cat ./ci/config.yml)
+  CONTENT=$(cat test/integration/ci/config.yml)
   local ENCODED_CONTENT
   ENCODED_CONTENT=$(echo -n "$CONTENT" | base64 -w 0)
 
@@ -47,7 +47,7 @@ EOF
 fi
 }
 
-oneTimeTearDown() {
+function oneTimeTearDown() {
   echo "[TEARDOWN] Cleaning up"
 }
 
