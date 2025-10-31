@@ -108,9 +108,9 @@ fi
 
 DEFINITION_ID=$(get_first_definition_id)
 PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
-echo $PIPELINE_ID
+echo "$PIPELINE_ID"
 WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
-echo $WORKFLOW_ID
+echo "$WORKFLOW_ID"
 wait_for_workflow_complete "$WORKFLOW_ID" 60 10
 }
 
