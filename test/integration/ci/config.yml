@@ -10,7 +10,7 @@ jobs:
     steps:
       - conjur-circleci-orb/retrieve_secret:
           account: "conjur"
-          secrets: "circleci/secretJwtVar|MY_SECRET"
+          secrets: "circleci/firstSecret|FIRST_SECRET;circleci/secondSecret|SECOND_SECRET"
           service_id: "circleci"
           url: "https://conjur-leader-1.mycompany.local"
           certificate: |

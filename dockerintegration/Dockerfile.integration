@@ -1,0 +1,21 @@
+FROM ubuntu:22.04
+
+RUN apt-get update -y && apt-get install -y \
+    git \
+    ruby-full \
+    libffi-dev \
+    libssl-dev \
+    libreadline-dev \
+    zlib1g-dev \
+    curl \
+    shunit2 \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN gem install simplecov simplecov-cobertura
+
+WORKDIR /conjur-circleci-orb
+
+COPY . .
+
+RUN chmod +x ./test/integration/retrieve_secret_integration_tests.sh

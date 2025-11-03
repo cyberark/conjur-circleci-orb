@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 source "$(dirname "$0")/api_helpers.sh"
 
 DEFINITION_ID=""
@@ -18,10 +17,6 @@ oneTimeSetUp() {
 	wait_for_workflow_complete "$WORKFLOW_ID" 5 10
 
 	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
-}
-
-function oneTimeTearDown() {
-	echo "[TEARDOWN] Cleaning up"
 }
 
 function test_single_secret_retrieval() {
