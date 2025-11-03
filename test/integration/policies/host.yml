@@ -2,7 +2,10 @@
   id: circleci
   body:
     - !variable
-      id: secretJwtVar
+      id: firstSecret
+
+    - !variable
+      id: secondSecret
 
     - !host
       id: 72974ed5-1055-4b5f-86fd-cddd77e44c01
@@ -14,4 +17,9 @@
     - !permit
       role: !host 72974ed5-1055-4b5f-86fd-cddd77e44c01
       privileges: [ read, execute ]
-      resource: !variable secretJwtVar
+      resource: !variable firstSecret
+
+    - !permit
+      role: !host 72974ed5-1055-4b5f-86fd-cddd77e44c01
+      privileges: [ read, execute ]
+      resource: !variable secondSecret
