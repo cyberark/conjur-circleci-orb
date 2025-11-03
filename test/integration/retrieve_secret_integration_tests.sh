@@ -38,7 +38,6 @@ EOF
 	artifact_url=$(get_artifact_from_job "$JOB_ID" "conjur_multiple_secrets_artifact")
 	actual_content=$(get_artifact_content_from_job "$artifact_url")
 	assertEquals "Secret value should match expected content" "$expected_secrets" "$actual_content"
-
 }
 
 # Load shUnit2
