@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   conjur-leader:
-    image: registry.tld/conjur-appliance:5.20.5
+    image: registry.tld/conjur-appliance:${APPLIANCE_TAG:-5.20.5}
     container_name: conjur-leader-1.mycompany.local
     hostname: conjur-leader-1.mycompany.local
     networks:
@@ -21,7 +21,7 @@ services:
       - CONJUR_LOG_LEVEL=debug
       - CONJUR_HOSTNAME=conjur-leader-1.mycompany.local
       - CONJUR_ACCOUNT=conjur
-      - CONJUR_ADMIN_PASSWORD=SecretP@ssword1
+      - CONJUR_ADMIN_PASSWORD=${CONJUR_ADMIN_PASSWORD}
       - CONJUR_AUTHENTICATORS=authn-jwt/circleci
     volumes:
       - ../test/integration/scripts/configure-conjur.sh:/scripts/configure-conjur.sh:ro
