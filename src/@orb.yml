@@ -5,5 +5,5 @@ description: |
   secured way through CircleCI Pipeline.
 
 display:
-  home_url: "https://github.cyberng.com/Conjur-Enterprise/conjur-circleci-orb/blob/main/README.md"
-  source_url: "https://github.cyberng.com/Conjur-Enterprise/conjur-circleci-orb"
+  home_url: "https://github.com/cyberark/conjur-circleci-orb/blob/main/README.md"
+  source_url: "https://github.com/cyberark/conjur-circleci-orb"
