@@ -18,13 +18,17 @@ jobs:
             
             -----END CERTIFICATE-----
       - run:
-          name: Save retrieved secret to fileHello
+          name: Save retrieved secret to file
           command: |
-            echo "$MY_SECRET" > conjur_secret_value.txt
-            echo "Secret value saved to conjur_secret_value.txt"
+            echo "$FIRST_SECRET" >> conjur_single_secret_value.txt
+            echo -e "$FIRST_SECRET\n$SECOND_SECRET" >> conjur_multiple_secrets_values.txt
       - store_artifacts:
-          path: conjur_secret_value.txt
-          destination: conjur_secret_artifact
+          path: conjur_single_secret_value.txt
+          destination: conjur_single_secret_artifact
+          when: always
+      - store_artifacts:
+          path: conjur_multiple_secrets_values.txt
+          destination: conjur_multiple_secrets_artifact
           when: always
 
 workflows:
