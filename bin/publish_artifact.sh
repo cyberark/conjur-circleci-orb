@@ -11,7 +11,7 @@ function checkEnvVars() {
 }
 
 function verifyNamespaceExistence() {
-  circleci orb list "$CIRCLECI_NAMESPACE" &> /dev/null
+  circleci orb list "$CIRCLECI_NAMESPACE"
   if [[ $? -ne 0 ]]; then
     echo "No namespace was found in the CircleCI Orbs repository"
     exit 1
@@ -19,7 +19,7 @@ function verifyNamespaceExistence() {
 }
 
 function verifyOrbExistence() {
-  circleci orb list "$CIRCLECI_NAMESPACE" | grep "$ORB_NAME" &> /dev/null
+  circleci orb list "$CIRCLECI_NAMESPACE" | grep "$ORB_NAME"
   if [[ $? -ne 0 ]]; then
     echo "Unable to find orb"
     exit 1
@@ -27,7 +27,7 @@ function verifyOrbExistence() {
 }
 
 function orbValidate() {
-  circleci orb validate "${ASSET_DIRECTORY}/orb.yml" &>/dev/null
+  circleci orb validate "${ASSET_DIRECTORY}/orb.yml"
   if [[ $? -ne 0 ]]; then
     echo "conjur-circleci-orb is not a valid orb"
     exit 1
@@ -45,7 +45,7 @@ function publishOrb() {
 function setupCircleCI() {
   circleci setup --no-prompt \
   --host https://circleci.com \
-  --token $CIRCLECI_API_KEY &> /dev/null
+  --token $CIRCLECI_API_KEY 
 
   if [[ $? -ne 0 ]]; then
     echo "Failed to setup CircleCI, Please verify your API Token"
