@@ -6,7 +6,7 @@ description: >
 usage:
   version: 2.1
   orbs:
-    conjur-circleci: cyberark/conjur-circleci@1.0.0
+    conjur-circleci: cyberark/conjur-circleci@0.0.2
   workflows:
     use-my-orb:
       jobs:
