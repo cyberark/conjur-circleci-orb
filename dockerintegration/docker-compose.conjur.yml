@@ -38,7 +38,7 @@ services:
     environment:
       - CONJUR_URL=https://conjur-leader-1.mycompany.local
       - CONJUR_ACCOUNT=conjur
-      - CONJUR_ADMIN_PASSWORD=SecretP@ssword1
+      - CONJUR_ADMIN_PASSWORD=${CONJUR_ADMIN_PASSWORD}
       - JWKS_URI=https://oidc.circleci.com/org/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6/.well-known/jwks-pub.json
       - ISSUER=https://oidc.circleci.com/org/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6
       - AUDIENCE=1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6
