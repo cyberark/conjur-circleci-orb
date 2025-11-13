@@ -61,7 +61,7 @@ services:
       - conjur-cli
     environment:
       - CIRCLECI_RUNNER_NAME=my-macos-runner2
-      - CIRCLECI_RUNNER_API_AUTH_TOKEN=
+      - CIRCLECI_RUNNER_API_AUTH_TOKEN=${CIRCLECI_API_TOKEN}
       - CIRCLECI_RESOURCE_CLASS=namespace-poc-doc/poc-doc-resource
 
 networks:
