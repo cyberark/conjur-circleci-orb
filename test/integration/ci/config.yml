@@ -1,12 +1,12 @@
 version: 2.1
 
 orbs:
-  conjur-circleci-orb: cyberark/conjur-circleci-orb@0.0.1
+  conjur-circleci-orb: cyberark/conjur-circleci-orb@0.0.2
 
 jobs:
   retrieve-secrets:
     machine: true
-    resource_class: namespace-poc-doc/poc-doc-resource
+    resource_class: namespace-poc-doc/poc-doc-resource1
     steps:
       - conjur-circleci-orb/retrieve_secret:
           account: "conjur"

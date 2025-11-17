@@ -17,6 +17,7 @@ services:
     restart: unless-stopped
     security_opt:
       - seccomp:unconfined
+      - no-new-privileges:true
     environment:
       - CONJUR_LOG_LEVEL=debug
       - CONJUR_HOSTNAME=conjur-leader-1.mycompany.local
@@ -62,7 +63,7 @@ services:
     environment:
       - CIRCLECI_RUNNER_NAME=my-macos-runner2
       - CIRCLECI_RUNNER_API_AUTH_TOKEN=${CIRCLECI_API_TOKEN}
-      - CIRCLECI_RESOURCE_CLASS=namespace-poc-doc/poc-doc-resource
+      - CIRCLECI_RESOURCE_CLASS=namespace-poc-doc/poc-doc-resource1
 
 networks:
   conjur:
