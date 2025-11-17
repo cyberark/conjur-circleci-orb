@@ -54,7 +54,7 @@ version: 2.1
 
 2. Add the orbs stanza below your version, invoking the orb
 orbs:
-  conjur: cyberark/conjur@1.0.0
+  conjur-circleci-orb: cyberark/conjur-circleci-orb@0.0.2
 
 3. Use conjur elements in your existing workflows and jobs.
 
@@ -247,6 +247,15 @@ Provide the policy for grant the workload acces to the secrets and the CLI comma
 - Save policy name as: circleci-secrets.yml and upate the policy.
 ```
 conjur policy load -b data -f circleci-secrets.yml
+```
+# Running Tests
+
+## Unit Tests
+
+Run the provided script to execute all unit tests and generate coverage reports:
+
+```
+./bin/unit_test_coverage.sh
 ```
 
 ## Contributing
