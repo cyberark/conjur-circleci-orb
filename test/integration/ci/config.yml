@@ -1,0 +1,39 @@
+version: 2.1
+
+orbs:
+  conjur-circleci-orb: cyberark/conjur-circleci-orb@0.0.2
+
+jobs:
+  retrieve-secrets:
+    machine: true
+    resource_class: namespace-poc-doc/poc-doc-resource1
+    steps:
+      - conjur-circleci-orb/retrieve_secret:
+          account: "conjur"
+          secrets: "circleci/firstSecret|FIRST_SECRET;circleci/secondSecret|SECOND_SECRET"
+          service_id: "circleci"
+          url: "https://conjur-leader-1.mycompany.local"
+          certificate: |
+            -----BEGIN CERTIFICATE-----
+            
+            -----END CERTIFICATE-----
+      - run:
+          name: Save retrieved secret to file
+          command: |
+            echo "$FIRST_SECRET" >> conjur_single_secret_value.txt
+            echo -e "$FIRST_SECRET\n$SECOND_SECRET" >> conjur_multiple_secrets_values.txt
+      - store_artifacts:
+          path: conjur_single_secret_value.txt
+          destination: conjur_single_secret_artifact
+          when: always
+      - store_artifacts:
+          path: conjur_multiple_secrets_values.txt
+          destination: conjur_multiple_secrets_artifact
+          when: always
+
+workflows:
+  use-my-orb:
+    jobs:
+      - retrieve-secrets:
+          context: 
+            - CIRCLE_OIDC_TOKEN_V2

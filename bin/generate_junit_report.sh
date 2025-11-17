@@ -1,6 +1,6 @@
 #!/bin/bash
 
-test_output=$(./test/retrieve_secret_unit_test.sh)
+test_output=$(./test/unit/retrieve_secret_unit_test.sh)
 
 tests_passed=$(echo "$test_output" | grep -c "OK")
 tests_failed=$(echo "$test_output" | grep -c "FAILED")

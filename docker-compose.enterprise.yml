@@ -6,6 +6,7 @@ services:
       CONJUR_AUTHENTICATORS: authn-jwt/circleci1
     security_opt:
       - seccomp:unconfined # --security-opt seccomp=unconfined
+      - no-new-privileges:true
     hostname: conjur
     ports:
       - "443"

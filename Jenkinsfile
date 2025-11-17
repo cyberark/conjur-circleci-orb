@@ -74,10 +74,10 @@ pipeline {
         }
       }
     }
-    stage('Code Coverage') {
+    stage('Unit Tests & Coverage') {
       steps {
         script {
-          infrapool.agentSh './bin/coverage.sh'
+          infrapool.agentSh './bin/unit_test_coverage.sh'
           infrapool.agentStash name: 'junit-xml', includes: 'output/*.xml'
         }
       }

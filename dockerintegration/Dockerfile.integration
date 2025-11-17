@@ -12,12 +12,10 @@ RUN apt-get update -y && apt-get install -y \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-RUN gem install bashcov simplecov simplecov-cobertura
+RUN gem install simplecov simplecov-cobertura
 
 WORKDIR /conjur-circleci-orb
 
 COPY . .
 
-ENV COVERAGE=true
-
-RUN chmod +x test/unit/retrieve_secret_unit_test.sh
+RUN chmod +x ./test/integration/retrieve_secret_integration_tests.sh
