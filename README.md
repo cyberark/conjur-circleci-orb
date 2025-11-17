@@ -98,7 +98,7 @@ The second secret section is db/sql_password. When no name is given for the envi
 
 * circle/config.yml with call to the conjur elements in workflows and jobs
 
-<img src="img/config_yaml.png" width= "400" height="400">
+<img src="img/config_yml.png" width= "400" height="400">
 
 ## Conjur setup
 
