@@ -1,32 +1,4 @@
-version: '3.8'
-
 services:
-  conjur-leader:
-    image: registry.tld/conjur-appliance:${APPLIANCE_TAG:-5.0-stable}
-    container_name: conjur-leader-1.mycompany.local
-    hostname: conjur-leader-1.mycompany.local
-    networks:
-      conjur:
-        aliases:
-          - conjur-leader-1.mycompany.local
-    ports:
-      - "443:443"
-      - "444:444"
-      - "5432:5432"
-      - "1999:1999"
-    restart: unless-stopped
-    security_opt:
-      - seccomp:unconfined
-      - no-new-privileges:true
-    environment:
-      - CONJUR_LOG_LEVEL=debug
-      - CONJUR_HOSTNAME=conjur-leader-1.mycompany.local
-      - CONJUR_ACCOUNT=conjur
-      - CONJUR_ADMIN_PASSWORD=${CONJUR_ADMIN_PASSWORD}
-      - CONJUR_AUTHENTICATORS=authn-jwt/circleci
-    volumes:
-      - ../test/integration/scripts/configure-conjur.sh:/scripts/configure-conjur.sh:ro
-
   conjur-cli:
     image: cyberark/conjur-cli:9
     container_name: conjur-cli
@@ -38,6 +10,7 @@ services:
     command: infinity
     environment:
       - CONJUR_URL=https://conjur-leader-1.mycompany.local
+      - CONJUR_OSS_URL=https://proxy
       - CONJUR_ACCOUNT=conjur
       - CONJUR_ADMIN_PASSWORD=${CONJUR_ADMIN_PASSWORD}
       - JWKS_URI=https://oidc.circleci.com/org/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6/.well-known/jwks-pub.json
@@ -49,6 +22,7 @@ services:
       - ../test/integration/policies:/tmp/policies:ro
       - ../test/integration/scripts/configure-cli.sh:/scripts/configure-cli.sh:ro
       - ../test/integration/scripts/configure-jwt.sh:/scripts/configure-jwt.sh:ro
+      - ../test/integration/data:/data:ro
 
   circleci-runner:
     build:
@@ -62,9 +36,5 @@ services:
       - conjur-cli
     environment:
       - CIRCLECI_RUNNER_NAME=my-macos-runner2
-      - CIRCLECI_RUNNER_API_AUTH_TOKEN=${CIRCLECI_API_TOKEN}
-      - CIRCLECI_RESOURCE_CLASS=namespace-poc-doc/poc-doc-resource1
-
-networks:
-  conjur:
-    driver: bridge
+      - CIRCLECI_RUNNER_API_AUTH_TOKEN=${CIRCLECI_RUNNER_API_TOKEN}
+      - CIRCLECI_RESOURCE_CLASS=namespace-poc-doc/poc-doc-resource3
