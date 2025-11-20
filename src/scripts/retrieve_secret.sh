@@ -88,10 +88,10 @@ function network_client() {
   case "$method" in
     "POST")
       data="$3"
-      common_curl_options+=("--request" "$method" "$url" "--header" 'Content-Type: application/x-www-form-urlencoded' "--header" "Accept-Encoding: base64" "--data-urlencode" "$data")
+      common_curl_options+=("--request" "$method" "$url" "--header" "Content-Type: application/x-www-form-urlencoded" "--header" "x-cybr-telemetry: $(telemetry_header) "--header" "Accept-Encoding: base64" "--data-urlencode" "$data")
       ;;
     "GET")
-      common_curl_options+=("$url" "--header" "Authorization: Token token=\"$token\"")
+      common_curl_options+=("$url" "--header" "Authorization: Token token=\"$token\"" "--header" "x-cybr-telemetry:" $(telemetry_header)")
       ;;
     *)
       echo "Unsupported HTTP method: $method"
@@ -106,6 +106,19 @@ function network_client() {
   else
     result="$response"
   fi
+}
+
+function telemetry_header() {
+    local script_dir=$(dirname "$(realpath "$0")")
+    local changelog_file="$script_dir/../../CHANGELOG.md"
+
+    if [ -f "$changelog_file" ]; then
+        version=$(grep -o '\[[0-9]\+\.[0-9]\+\.[0-9]\+\]' $changelog_file | head -n 1 | tr -d '[]')
+    else
+        version="0.0.0-default"
+    fi
+    
+    echo -n "in=CirclCI&it=CI/CD&iv=$version&vn=CircleCI" | base64 | tr '+/' '-_' | tr -d '=' | tr -d '[:space:]'
 }
 
 function authenticate() {
@@ -140,7 +153,6 @@ function single_secret_fetch() {
       exit 1
     elif [[ "${secretVal}" == *"is empty or not found"* ]]; then
       flag=true
-      err_msg+="${secretId}, "
     else
       echo "As the job will be marked as unsuccessful, the environment variable for secrets found is not set."
     fi
