@@ -9,7 +9,7 @@ function configure_conjur_cli() {
 	case "$conjur_env" in
 	"oss")
 		conjur init "$conjur_env" -u "$CONJUR_OSS_URL" --self-signed --account "$CONJUR_ACCOUNT"
-		conjur login -i admin -p "$(cat data/oss_admin_data | awk '/API key for admin/{print $NF}' | tr -d '\r')"
+		conjur login -i admin -p "$(awk '/API key for admin/{print $NF}' data/oss_admin_data | tr -d '\r')"
 		;;
 	"enterprise")
 	conjur init "$conjur_env" -u "$CONJUR_URL" --self-signed --account "$CONJUR_ACCOUNT"
