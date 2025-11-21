@@ -40,7 +40,7 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@database/postgres
       CONJUR_DATA_KEY: ${CONJUR_DATA_KEY}
-      CONJUR_AUTHENTICATORS: authn-jwt/circleci
+      CONJUR_AUTHENTICATORS: ${CONJUR_AUTHENTICATOR:-authn-jwt/circleci}
       CONJUR_TELEMETRY_ENABLED: 'false'
       CONJUR_API_RESOURCE_LIST_LIMIT_MAX: 5000
     depends_on:
