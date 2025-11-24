@@ -73,18 +73,18 @@ assertRegex() {
    actual="$2"
  else
    fail "assertRegex requires 2 or 3 arguments"
-   return ${SHUNIT_FALSE}
+   return "${SHUNIT_FALSE}"
  fi
  # Test if actual matches pattern
  if [[ "$actual" =~ $pattern ]]; then
-   return ${SHUNIT_TRUE}
+   return "${SHUNIT_TRUE}"
  else
    if [ -n "$message" ]; then
-     _shunit_assertFail "$message: expected regex [$pattern] but was [$actual]"
+     _shunit_assertFail "${message}: expected regex [$pattern] but was [$actual]"
    else
      _shunit_assertFail "expected regex [$pattern] but was [$actual]"
    fi
-   return ${SHUNIT_FALSE}
+   return "${SHUNIT_FALSE}"
  fi
 }
 
@@ -119,10 +119,10 @@ test_network_client_unsupported_method() {
   output=$(network_client "PUT" "https://fake-conjur.com" 2>&1)
   status=$?
 
-  assertEquals 1 $status
+  assertEquals 1 ${status}
 
-  if [[ "$output" != *"Unsupported HTTP method"* ]]; then
-    echo "FAIL: Expected output to contain 'Unsupported HTTP method', but got: $output"
+  if [[ "${output}" != *"Unsupported HTTP method"* ]]; then
+    echo "FAIL: Expected output to contain 'Unsupported HTTP method', but got: ${output}"
     return 1
   fi
 }
@@ -142,7 +142,7 @@ test_authenticate_success() {
   assertEquals 0 $status
 
   if [[ "$output" != *"Authentication Successful."* ]]; then
-    echo "FAIL: Expected 'Authentication Successful.' in output, got: $output"
+    echo "FAIL: Expected 'Authentication Successful.' in output, got: ${output}"
     return 1
   fi
 }
@@ -158,10 +158,10 @@ test_authenticate_failure() {
   output=$(authenticate 2>&1)
   status=$?
 
-  assertEquals 1 $status
+  assertEquals 1 "${status}"
 
-  if [[ "$output" != *"Authentication Failed."* ]]; then
-    echo "FAIL: Expected 'Authentication Failed.' in output, got: $output"
+  if [[ "${output}" != *"Authentication Failed."* ]]; then
+    echo "FAIL: Expected 'Authentication Failed.' in output, got: ${output}"
     return 1
   fi
 }
@@ -400,27 +400,27 @@ test_extracts_version_from_changelog() {
 
   output="$(get_telemetry_header 2>&1)"
 
-  decoded="$(echo "$encoded" | base64 --decode 2>/dev/null)"
-  assertContains "$decoded" "iv=0.0.3" "Version mismatch"
-  assertContains "$decoded" "in=CircleCI"
+  decoded="$(echo "${encoded}" | base64 --decode 2>/dev/null)"
+  assertContains "${decoded}" "iv=0.0.3" "Version mismatch"
+  assertContains "${decoded}" "in=CircleCI"
 }
 
 test_takes_first_version_only() {
   output="$(get_telemetry_header 2>&1)"
 
-  decoded="$(echo "$encoded" | base64 --decode)"
-  assertContains "$decoded" "iv=0.0.3"
-  assertNotContains "$decoded" "iv=0.0.2"
+  decoded="$(echo "${encoded}" | base64 --decode)"
+  assertContains "${decoded}" "iv=0.0.3"
+  assertNotContains "${decoded}" "iv=0.0.2"
 }
 
 test_decoded_fields_structure() {
   output="$(get_telemetry_header 2>&1)"
 
-  decoded="$(echo "$encoded" | base64 --decode)"
-  assertContains "$decoded" "in=CircleCI"
-  assertContains "$decoded" "it=CI/CD"
-  assertContains "$decoded" "iv=0.0.0-default"
-  assertContains "$decoded" "vn=CircleCI"
+  decoded="$(echo "${encoded}" | base64 --decode)"
+  assertContains "${decoded}" "in=CircleCI"
+  assertContains "${decoded}" "it=CI/CD"
+  assertContains "${decoded}" "iv=0.0.0-default"
+  assertContains "${decoded}" "vn=CircleCI"
 }
 
 # Load 

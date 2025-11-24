@@ -4,11 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-
 ## [0.0.3] - 2025-11-20
 
 ### Added
-- Telemetry headers to enable visibility into usage, adoption, and performance
+- Telemetry headers to enable visibility into usage, adoption and performance
 
 ## [0.0.2] - 2025-11-05
 
