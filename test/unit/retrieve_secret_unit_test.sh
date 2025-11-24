@@ -59,6 +59,34 @@ assertIntegerEquals() {
   return 0
 }
 
+assertRegex() {
+ local message=""
+ local pattern=""
+ local actual=""
+ # Handle optional message parameter
+ if [ $# -eq 3 ]; then
+   message="$1"
+   pattern="$2"
+   actual="$3"
+ elif [ $# -eq 2 ]; then
+   pattern="$1"
+   actual="$2"
+ else
+   fail "assertRegex requires 2 or 3 arguments"
+   return ${SHUNIT_FALSE}
+ fi
+ # Test if actual matches pattern
+ if [[ "$actual" =~ $pattern ]]; then
+   return ${SHUNIT_TRUE}
+ else
+   if [ -n "$message" ]; then
+     _shunit_assertFail "$message: expected regex [$pattern] but was [$actual]"
+   else
+     _shunit_assertFail "expected regex [$pattern] but was [$actual]"
+   fi
+   return ${SHUNIT_FALSE}
+ fi
+}
 
 # Mock the network_client
 mock_network_client_success() {
@@ -353,11 +381,47 @@ test_fetch_secret_no_secrets() {
   set_environment_var() { echo "Environment variables set"; }
 
   output=$(fetch_secret 2>&1)
+
   
   assertContains "$output" "Batch retrieval of secrets succeeded."
   assertContains "$output" "Environment variables set"
 }
 
 
-# Load shUnit2
+test_default_version_no_changelog() {
+  output="$(get_telemetry_header 2>&1)"
+
+  assertRegex "$output" '^[A-Za-z0-9_-]+$' "Output must be URL-safe base64"
+  assertNotContains "$output" "=" "Output must not contain padding"
+  [[ -n "$output" ]] || fail "Output must not be empty"
+}
+
+test_extracts_version_from_changelog() {
+
+  output="$(get_telemetry_header 2>&1)"
+
+  decoded="$(echo "$encoded" | base64 --decode 2>/dev/null)"
+  assertContains "$decoded" "iv=0.0.3" "Version mismatch"
+  assertContains "$decoded" "in=CircleCI"
+}
+
+test_takes_first_version_only() {
+  output="$(get_telemetry_header 2>&1)"
+
+  decoded="$(echo "$encoded" | base64 --decode)"
+  assertContains "$decoded" "iv=0.0.3"
+  assertNotContains "$decoded" "iv=0.0.2"
+}
+
+test_decoded_fields_structure() {
+  output="$(get_telemetry_header 2>&1)"
+
+  decoded="$(echo "$encoded" | base64 --decode)"
+  assertContains "$decoded" "in=CircleCI"
+  assertContains "$decoded" "it=CI/CD"
+  assertContains "$decoded" "iv=0.0.0-default"
+  assertContains "$decoded" "vn=CircleCI"
+}
+
+# Load 
 . /usr/bin/shunit2
