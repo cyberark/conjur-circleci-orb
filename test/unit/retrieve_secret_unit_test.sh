@@ -78,17 +78,17 @@ assertIntegerEquals() {
 }
 
 assertRegex() {
- local message=""
- local pattern=""
  local actual=""
+ local pattern=""
+ local message=""
  # Handle optional message parameter
  if [[ $# -eq 3 ]]; then
-   message="$1"
+   actual="$1"
    pattern="$2"
-   actual="$3"
+   message="$3"
  elif [[ $# -eq 2 ]]; then
-   pattern="$1"
-   actual="$2"
+   actual="$1"
+   pattern="$2"
  else
    fail "assertRegex requires 2 or 3 arguments"
    return "${SHUNIT_FALSE}"
@@ -157,9 +157,9 @@ test_authenticate_success() {
   output=$(authenticate 2>&1)
   status=$?
 
-  assertEquals 0 $status
+  assertEquals 0 ${status}
 
-  if [[ "$output" != *"Authentication Successful."* ]]; then
+  if [[ "${output}" != *"Authentication Successful."* ]]; then
     echo "FAIL: Expected 'Authentication Successful.' in output, got: ${output}"
     return 1
   fi
