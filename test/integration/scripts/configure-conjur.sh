@@ -1,14 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
+DEPLOYMENT_TYPE="${1}"
+
 # Configure Conjur master (sets up admin password, account, and initial settings)
 function configure() {
-	evoke configure master \
+case "$DEPLOYMENT_TYPE" in
+	"oss")
+		conjurctl wait
+		conjurctl account create conjur > /data/oss_admin_data
+		;;
+	"enterprise")
+		evoke configure master \
 		--hostname=conjur-leader-1.mycompany.local \
 		--master-altnames="localhost,conjur-leader.mycompany.local,conjur-leader-1.mycompany.local" \
 		--accept-eula \
 		--admin-password="$CONJUR_ADMIN_PASSWORD" \
 		"$CONJUR_ACCOUNT"
+		;;
+	esac
 }
 
 # Allowlists the JWT authenticator by setting the CONJUR_AUTHENTICATORS variable.
