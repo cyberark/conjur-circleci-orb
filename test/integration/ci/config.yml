@@ -6,7 +6,7 @@ orbs:
 jobs:
   retrieve-secrets:
     machine: true
-    resource_class: namespace-poc-doc/poc-doc-resource1
+    resource_class: namespace-poc-doc/poc-doc-resource3
     steps:
       - conjur-circleci-orb/retrieve_secret:
           account: "conjur"

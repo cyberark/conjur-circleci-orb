@@ -1,0 +1,40 @@
+services:
+  conjur-leader:
+    image: registry.tld/conjur-appliance:${APPLIANCE_TAG:-5.0-stable}
+    container_name: conjur-leader-1.mycompany.local
+    hostname: conjur-leader-1.mycompany.local
+    networks:
+      conjur:
+        aliases:
+          - conjur-leader-1.mycompany.local
+    ports:
+      - "443:443"
+      - "444:444"
+      - "5432:5432"
+      - "1999:1999"
+    restart: unless-stopped
+    security_opt:
+      - seccomp:unconfined
+      - no-new-privileges:true
+    environment:
+      - CONJUR_LOG_LEVEL=debug
+      - CONJUR_HOSTNAME=conjur-leader-1.mycompany.local
+      - CONJUR_ACCOUNT=conjur
+      - CONJUR_ADMIN_PASSWORD=${CONJUR_ADMIN_PASSWORD}
+      - CONJUR_AUTHENTICATORS=${CONJUR_AUTHENTICATOR:-authn-jwt/circleci}
+    volumes:
+      - ../test/integration/scripts/configure-conjur.sh:/scripts/configure-conjur.sh:ro
+
+  conjur-cli:
+    extends:
+      file: common-services.yml
+      service: conjur-cli
+
+  circleci-runner:
+    extends:
+      file: common-services.yml
+      service: circleci-runner
+
+networks:
+  conjur:
+    driver: bridge
