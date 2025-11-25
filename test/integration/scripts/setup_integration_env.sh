@@ -2,15 +2,16 @@
 set -euo pipefail
 source "$(dirname "$0")/helpers.sh"
 
-COMPOSE_FILE="dockerIntegration/docker-compose.conjur.yml"
+validate_deployment_type "$@"
+set_compose_file
 
 # Create and start all the services from compose file and
 # Configure Conjur master (sets up admin password, account, and initial settings)
 function setup_environment() {
-	echo "[INFO] Start all the services from compose file"
+	echo "[INFO] Starting $DEPLOYMENT_TYPE services from compose file: $COMPOSE_FILE"
 	docker compose -f "$COMPOSE_FILE" up -d
-	echo "[INFO] Configuring Conjur master"
-	leaderExec bash /scripts/configure-conjur.sh
+	echo "[INFO] Configuring Conjur master for $DEPLOYMENT_TYPE deployment"
+    leaderExec bash /scripts/configure-conjur.sh "$DEPLOYMENT_TYPE"
 }
 
 # Connects a running container to a specified Docker network
@@ -32,7 +33,7 @@ function join_network() {
 # Runs the CLI configuration script
 function setup_conjur_cli() {
 	echo "[INFO] Configuring Conjur CLI"
-	cliExec bash /scripts/configure-cli.sh
+	cliExec bash /scripts/configure-cli.sh "$DEPLOYMENT_TYPE"
 }
 
 function configure_jwt() {
@@ -55,8 +56,8 @@ main() {
 	setup_environment
 	setup_conjur_cli
 	configure_jwt
-	inject_conjur_cert_into_yaml
+	inject_conjur_cert_into_yaml "$DEPLOYMENT_TYPE"
 }
 main
 
-echo "[INFO] Integration environment is ready."
+echo "[INFO] Integration environment is ready for $DEPLOYMENT_TYPE deployment."
