@@ -28,11 +28,29 @@ assertContains() {
   local string="$1"
   local substring="$2"
 
-  echo "$string" | grep -qF -- "$substring"
+  echo "${string}" | grep -qF -- "${substring}"
   local status=$?
 
-  if [[ $status -ne 0 ]]; then
-    echo "Expected to find '$substring' in '$string'"
+  if [[ ${status} -ne 0 ]]; then
+    echo "Expected to find '${substring}' in '${string}'"
+    return 1
+  fi
+}
+
+assertNotContains() {
+  local string="$1"
+  local substring="$2"
+  local message="${3:-}"
+
+  echo "${string}" | grep -qF -- "${substring}"
+  local status=$?
+
+  if [[ ${status} -eq 0 ]]; then
+    if [[ -n "${message}" ]]; then
+      echo "${message}"
+    else
+      echo "Expected NOT to find '${substring}' in '${string}'"
+    fi
     return 1
   fi
 }
@@ -41,18 +59,18 @@ assertIntegerEquals() {
   local expected=$1
   local actual=$2
   
-  if ! [[ "$expected" =~ ^-?[0-9]+$ ]]; then
-    echo "FAIL: Expected value '$expected' is not an integer."
+  if ! [[ "${expected}" =~ ^-?[0-9]+$ ]]; then
+    echo "FAIL: Expected value '${expected}' is not an integer."
     return 1
   fi
 
-  if ! [[ "$actual" =~ ^-?[0-9]+$ ]]; then
-    echo "FAIL: Actual value '$actual' is not an integer."
+  if ! [[ "${actual}" =~ ^-?[0-9]+$ ]]; then
+    echo "FAIL: Actual value '${actual}' is not an integer."
     return 1
   fi
 
-  if [[ "$expected" -ne "$actual" ]]; then
-    echo "FAIL: Expected '$expected', but got '$actual'"
+  if [[ "${expected}" -ne "${actual}" ]]; then
+    echo "FAIL: Expected '${expected}', but got '${actual}'"
     return 1
   fi
   
@@ -64,11 +82,11 @@ assertRegex() {
  local pattern=""
  local actual=""
  # Handle optional message parameter
- if [ $# -eq 3 ]; then
+ if [[ $# -eq 3 ]]; then
    message="$1"
    pattern="$2"
    actual="$3"
- elif [ $# -eq 2 ]; then
+ elif [[ $# -eq 2 ]]; then
    pattern="$1"
    actual="$2"
  else
@@ -76,13 +94,13 @@ assertRegex() {
    return "${SHUNIT_FALSE}"
  fi
  # Test if actual matches pattern
- if [[ "$actual" =~ $pattern ]]; then
+ if [[ "${actual}" =~ ${pattern} ]]; then
    return "${SHUNIT_TRUE}"
  else
-   if [ -n "$message" ]; then
-     _shunit_assertFail "${message}: expected regex [$pattern] but was [$actual]"
+   if [[ -n "${message}" ]]; then
+     _shunit_assertFail "${message}: expected regex [${pattern}] but was [${actual}]"
    else
-     _shunit_assertFail "expected regex [$pattern] but was [$actual]"
+     _shunit_assertFail "expected regex [${pattern}] but was [${actual}]"
    fi
    return "${SHUNIT_FALSE}"
  fi
@@ -383,17 +401,17 @@ test_fetch_secret_no_secrets() {
   output=$(fetch_secret 2>&1)
 
   
-  assertContains "$output" "Batch retrieval of secrets succeeded."
-  assertContains "$output" "Environment variables set"
+  assertContains "${output}" "Batch retrieval of secrets succeeded."
+  assertContains "${output}" "Environment variables set"
 }
 
 
 test_default_version_no_changelog() {
   output="$(get_telemetry_header 2>&1)"
 
-  assertRegex "$output" '^[A-Za-z0-9_-]+$' "Output must be URL-safe base64"
-  assertNotContains "$output" "=" "Output must not contain padding"
-  [[ -n "$output" ]] || fail "Output must not be empty"
+  assertRegex "${output}" '^[A-Za-z0-9_-]+$' "Output must be URL-safe base64"
+  assertNotContains "${output}" "=" "Output must not contain padding"
+  [[ -n "${output}" ]] || fail "Output must not be empty"
 }
 
 test_extracts_version_from_changelog() {
