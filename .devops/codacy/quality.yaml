@@ -1,4 +1,3 @@
-
 # goals
 # fileComplexityValueThreshold: 10    - Default: 20 - File will be considered complex when its complexity value is over this threshold. This value cannot be negative
 # fileDuplicationBlockThreshold: 1    - Default: 1  - File will be considered duplicated when the number of cloned blocks is over this threshold. This value cannot be negative
