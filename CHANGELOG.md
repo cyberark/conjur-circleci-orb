@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-- Telemetry headers to enable visibility into usage, adoption, and performance
+- Telemetry headers to enable visibility into usage and performance
 
 ## [0.0.2][] - 2025-11-05
 
