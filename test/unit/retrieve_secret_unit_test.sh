@@ -92,11 +92,7 @@ test_network_client_unsupported_method() {
   status=$?
 
   assertEquals 1 $status
-
-  if [[ "$output" != *"Unsupported HTTP method"* ]]; then
-    echo "FAIL: Expected output to contain 'Unsupported HTTP method', but got: $output"
-    return 1
-  fi
+  assertContains "$output" "Unsupported HTTP method"
 }
 
 # Test the `authenticate` function
@@ -112,11 +108,7 @@ test_authenticate_success() {
   status=$?
 
   assertEquals 0 $status
-
-  if [[ "$output" != *"Authentication Successful."* ]]; then
-    echo "FAIL: Expected 'Authentication Successful.' in output, got: $output"
-    return 1
-  fi
+  assertContains "$output" "Authentication Successful."
 }
 
 test_authenticate_failure() {
@@ -131,11 +123,7 @@ test_authenticate_failure() {
   status=$?
 
   assertEquals 1 $status
-
-  if [[ "$output" != *"Authentication Failed."* ]]; then
-    echo "FAIL: Expected 'Authentication Failed.' in output, got: $output"
-    return 1
-  fi
+  assertContains "$output" "Authentication Failed."
 }
 
 # Test the `multiple_secrets_fetch` function
@@ -358,6 +346,39 @@ test_fetch_secret_no_secrets() {
   assertContains "$output" "Environment variables set"
 }
 
+test_main_empty_oidc_token() {
+  export PARAM_APPLIANCE_URL="https://fake-conjur.com"
+  export PARAM_ACCOUNT="my-account"
+  export PARAM_SERVICE_ID="my-service"
+  export PARAM_SECRETS_ID="secret1|MY_SECRET"
+  export CIRCLE_OIDC_TOKEN_V2=""
+  
+  output=$(main 2>&1)
+  
+  assertContains "$output" "OIDC Token cannot be found. A CircleCI context must be specified."
+}
+
+test_main_provided_oidc_token() {
+  export PARAM_APPLIANCE_URL="https://fake-conjur.com"
+  export PARAM_ACCOUNT="my-account"
+  export PARAM_SERVICE_ID="my-service"
+  export PARAM_SECRETS_ID="secret1|MY_SECRET"
+  export CIRCLE_OIDC_TOKEN_V2="valid-oidc-token"
+
+  output=$(main 2>&1)
+
+  assertContains "$output" "::debug Authenticate via Authn-JWT"
+}
+
+test_multiple_secrets_fetch_empty_or_not_found() {
+  multiple_secrets_fetch() { secretsVal="Variable secret1 is empty or not found"; }
+  single_secret_fetch() { echo "single_secret_fetch called"; }
+  
+  output=$(fetch_secret 2>&1)
+  
+  assertContains "$output" "Batch retrieval failed, falling to single secret fetch"
+  assertContains "$output" "single_secret_fetch called"
+}
 
 # Load shUnit2
 . /usr/bin/shunit2
