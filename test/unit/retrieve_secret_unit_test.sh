@@ -8,6 +8,10 @@ export PATH="./test/mocks:$PATH"
 export CONJUR_CERTIFICATE="dummy-cert"
 export CONJUR_ACCOUNT="testaccount"
 export token="fake-token"
+export PARAM_APPLIANCE_URL="https://fake-conjur.com"
+export PARAM_ACCOUNT="my-account"
+export PARAM_SERVICE_ID="my-service"
+export PARAM_SECRETS_ID="secret1|MY_SECRET"
 
 # oneTimeSetup for mock
 oneTimeSetUp() {
@@ -347,10 +351,6 @@ test_fetch_secret_no_secrets() {
 }
 
 test_main_empty_oidc_token() {
-  export PARAM_APPLIANCE_URL="https://fake-conjur.com"
-  export PARAM_ACCOUNT="my-account"
-  export PARAM_SERVICE_ID="my-service"
-  export PARAM_SECRETS_ID="secret1|MY_SECRET"
   export CIRCLE_OIDC_TOKEN_V2=""
   
   output=$(main 2>&1)
@@ -359,10 +359,6 @@ test_main_empty_oidc_token() {
 }
 
 test_main_provided_oidc_token() {
-  export PARAM_APPLIANCE_URL="https://fake-conjur.com"
-  export PARAM_ACCOUNT="my-account"
-  export PARAM_SERVICE_ID="my-service"
-  export PARAM_SECRETS_ID="secret1|MY_SECRET"
   export CIRCLE_OIDC_TOKEN_V2="valid-oidc-token"
 
   output=$(main 2>&1)
