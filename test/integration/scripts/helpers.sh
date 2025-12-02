@@ -99,6 +99,5 @@ function prepare_circleci_yaml() {
 
 function set_secrets_in_circleci_yaml_config(){
 	local secrets="${1}"
-	echo $secrets
 	awk -v secrets_var="$secrets" '{gsub(/secrets: ".*"/, "secrets: \"" secrets_var "\""); print}' "$CIRCLECI_YAML_FILE" > "${CIRCLECI_YAML_FILE}.tmp" && mv "${CIRCLECI_YAML_FILE}.tmp" "$CIRCLECI_YAML_FILE"
 }
