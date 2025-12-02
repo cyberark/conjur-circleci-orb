@@ -110,6 +110,93 @@ assertRegex() {
  fi
 }
 
+test_InstallJq_download_linux() {
+  # Mock jq being missing initially
+  command() {
+    if [[ "$1" == "-v" ]] && [[ "$2" == "jq" ]]; then
+      return 1 # jq not found
+    fi
+    return 0 # curl found
+  }
+  
+  # Mock uname to return Linux
+  uname() { echo "Linux"; }
+  
+  # Mock curl to capture the download URL
+  curl() {
+    if [[ "$*" == *"/jq-linux32"* ]]; then
+      echo "Downloaded Linux version" > "$JQ_PATH"
+      chmod +x "$JQ_PATH"
+    fi
+  }
+
+  export JQ_PATH="./jq_mock"
+  
+  # Run function
+  InstallJq
+  local status=$?
+  
+  # Check if we tried to download the linux version
+  local content
+  content=$(cat "$JQ_PATH")
+  
+  rm -f "$JQ_PATH"
+  unset -f command uname curl # Cleanup mocks
+  
+  assertEquals 0 $status
+  assertContains "$content" "Downloaded Linux version"
+}
+
+test_InstallJq_download_darwin() {
+  # Mock jq being missing initially
+  command() {
+    if [[ "$1" == "-v" ]] && [[ "$2" == "jq" ]]; then
+      return 1
+    fi
+    return 0
+  }
+  
+  # Mock uname to return Darwin
+  uname() { echo "Darwin Kernel Version"; }
+  
+  # Mock curl
+  curl() {
+    if [[ "$*" == *"/jq-osx-amd64"* ]]; then
+      echo "Downloaded OSX version" > "$JQ_PATH"
+      chmod +x "$JQ_PATH"
+    fi
+  }
+
+  export JQ_PATH="./jq_mock_mac"
+  
+  InstallJq
+  local status=$?
+  
+  local content
+  content=$(cat "$JQ_PATH")
+  rm -f "$JQ_PATH"
+  unset -f command uname curl
+  
+  assertEquals 0 $status
+  assertContains "$content" "Downloaded OSX version"
+}
+
+test_InstallJq_missing_curl_fail() {
+  # Mock curl being missing
+  command() {
+    if [[ "$2" == "curl" ]]; then return 1; fi
+    if [[ "$2" == "jq" ]]; then return 1; fi
+  }
+  
+  output=$(InstallJq 2>&1)
+  status=$?
+  
+  unset -f command
+  
+  assertEquals 1 $status
+  assertContains "$output" "CONJUR ORB ERROR: CURL is required"
+}
+
 # Mock the network_client
 mock_network_client_success() {
   token="mocked_token_value"
