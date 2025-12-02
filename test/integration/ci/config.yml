@@ -18,7 +18,7 @@ jobs:
             
             -----END CERTIFICATE-----
       - run:
-          name: Save retrieved secret to file
+          name: Save retrieved secrets to file
           command: |
             echo "$FIRST_SECRET" >> conjur_single_secret_value.txt
             echo -e "$FIRST_SECRET\n$SECOND_SECRET" >> conjur_multiple_secrets_values.txt
@@ -30,7 +30,6 @@ jobs:
           path: conjur_multiple_secrets_values.txt
           destination: conjur_multiple_secrets_artifact
           when: always
-
 workflows:
   use-my-orb:
     jobs:

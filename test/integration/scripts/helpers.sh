@@ -2,11 +2,17 @@
 set -euo pipefail
 # Common helper functions
 
-DEPLOYMENT_TYPE="${1}"
+if [[ -z "${DEPLOYMENT_TYPE:-}" && $# -gt 0 ]]; then
+    DEPLOYMENT_TYPE="${1}"
+fi
+
+# Export DEPLOYMENT_TYPE so it's available to sourced scripts
+export DEPLOYMENT_TYPE
 
 CONJUR_LEADER_CONTAINER="conjur-leader-1.mycompany.local"
 CONJUR_CLI_CONTAINER="conjur-cli"
 CONJUR_PROXY_CONTAINER="proxy"
+CIRCLECI_YAML_FILE="./test/integration/ci/config.yml"
 
 function validate_deployment_type() {
 	if [[ $# -ne 1 ]]; then
@@ -55,20 +61,23 @@ function proxyExec() {
 	docker exec "$CONJUR_PROXY_CONTAINER" "$@"
 }
 
-function inject_conjur_cert_into_yaml() {
+: '
+Injects into the CircleCI YAML file the URL of the Conjur instance as well as the SSL certificate,
+depending on the deployment type.
+ '
+function prepare_circleci_yaml() {
 	local cert_file="conjur.pem"
-	local yaml_file="test/integration/ci/config.yml"
 
 	case "$DEPLOYMENT_TYPE" in
 	"oss")
 		proxyExec openssl s_client -connect proxy:443 -showcerts </dev/null 2>/dev/null |
 		awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print $0}' >"conjur.pem"
-		awk '{gsub(/url: ".*"/, "url: \"https://proxy\""); print}' "$yaml_file" > "${yaml_file}.tmp" && mv "${yaml_file}.tmp" "$yaml_file"
+		awk '{gsub(/url: ".*"/, "url: \"https://proxy\""); print}' "$CIRCLECI_YAML_FILE" > "${CIRCLECI_YAML_FILE}.tmp" && mv "${CIRCLECI_YAML_FILE}.tmp" "$CIRCLECI_YAML_FILE"
 		;;
 	"enterprise")
 		leaderExec openssl s_client -connect localhost:443 -showcerts </dev/null 2>/dev/null |
 		awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print $0}' >"conjur.pem"
-		awk '{gsub(/url: ".*"/, "url: \"https://conjur-leader-1.mycompany.local\""); print}' "$yaml_file" > "${yaml_file}.tmp" && mv "${yaml_file}.tmp" "$yaml_file"
+		awk '{gsub(/url: ".*"/, "url: \"https://conjur-leader-1.mycompany.local\""); print}' "$CIRCLECI_YAML_FILE" > "${CIRCLECI_YAML_FILE}.tmp" && mv "${CIRCLECI_YAML_FILE}.tmp" "$CIRCLECI_YAML_FILE"
 		;;
 	esac
     
@@ -83,7 +92,13 @@ function inject_conjur_cert_into_yaml() {
     in_cert && (/^[ ]{12}/ || /^$/) {next}
     in_cert && !/^[ ]{12}/ {in_cert=0}
     {print}
-  ' "$yaml_file" >"${yaml_file}.tmp" && mv "${yaml_file}.tmp" "$yaml_file"
+  ' "$CIRCLECI_YAML_FILE" >"${CIRCLECI_YAML_FILE}.tmp" && mv "${CIRCLECI_YAML_FILE}.tmp" "$CIRCLECI_YAML_FILE"
 
-	echo "Certificate updated in $yaml_file"
+	echo "Certificate updated in $CIRCLECI_YAML_FILE"
+}
+
+function set_secrets_in_circleci_yaml_config(){
+	local secrets="${1}"
+	echo $secrets
+	awk -v secrets_var="$secrets" '{gsub(/secrets: ".*"/, "secrets: \"" secrets_var "\""); print}' "$CIRCLECI_YAML_FILE" > "${CIRCLECI_YAML_FILE}.tmp" && mv "${CIRCLECI_YAML_FILE}.tmp" "$CIRCLECI_YAML_FILE"
 }
