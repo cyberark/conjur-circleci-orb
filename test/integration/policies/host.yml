@@ -7,6 +7,9 @@
     - !variable
       id: secondSecret
 
+    - !variable
+      id: emptySecret
+
     - !host
       id: 72974ed5-1055-4b5f-86fd-cddd77e44c01
       annotations:
@@ -23,3 +26,8 @@
       role: !host 72974ed5-1055-4b5f-86fd-cddd77e44c01
       privileges: [ read, execute ]
       resource: !variable secondSecret
+
+    - !permit
+      role: !host 72974ed5-1055-4b5f-86fd-cddd77e44c01
+      privileges: [ read, execute ]
+      resource: !variable emptySecret

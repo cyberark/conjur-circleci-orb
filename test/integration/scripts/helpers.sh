@@ -61,13 +61,37 @@ function proxyExec() {
 	docker exec "$CONJUR_PROXY_CONTAINER" "$@"
 }
 
-: '
-Injects into the CircleCI YAML file the URL of the Conjur instance as well as the SSL certificate,
-depending on the deployment type.
- '
-function prepare_circleci_yaml() {
-	local cert_file="conjur.pem"
 
+#Injects into the CircleCI YAML file the SSL certificate fetched from the Conjur server
+function set_conjur_certificate_in_circleci_yaml() {
+	local cert_file="${1:-conjur.pem}"
+
+   	awk -v cert_file="$cert_file" '
+    BEGIN {
+      while((getline line < cert_file) > 0) {
+        cert_lines[++cert_count] = "            " line
+      }
+      close(cert_file)
+      in_cert=0
+    }
+    /certificate: \|/ {
+      print; in_cert=1;
+      for(i=1; i<=cert_count; i++) {
+        print cert_lines[i]
+      }
+      next
+    }
+    in_cert && /^[ ]+-----END CERTIFICATE-----/ {
+      in_cert=0; next
+    }
+    in_cert {next}
+    {print}
+  ' "$CIRCLECI_YAML_FILE" >"${CIRCLECI_YAML_FILE}.tmp" && mv "${CIRCLECI_YAML_FILE}.tmp" "$CIRCLECI_YAML_FILE"
+
+	echo "Certificate updated in $CIRCLECI_YAML_FILE"
+}
+
+function set_conjur_url_in_circleci_yaml_config(){
 	case "$DEPLOYMENT_TYPE" in
 	"oss")
 		proxyExec openssl s_client -connect proxy:443 -showcerts </dev/null 2>/dev/null |
@@ -80,21 +104,6 @@ function prepare_circleci_yaml() {
 		awk '{gsub(/url: ".*"/, "url: \"https://conjur-leader-1.mycompany.local\""); print}' "$CIRCLECI_YAML_FILE" > "${CIRCLECI_YAML_FILE}.tmp" && mv "${CIRCLECI_YAML_FILE}.tmp" "$CIRCLECI_YAML_FILE"
 		;;
 	esac
-    
-	# Replace only the certificate block in the YAML file
-	awk -v cert_file="$cert_file" '
-    BEGIN {in_cert=0}
-    /^[ ]{10}certificate: \|/ {
-      print; in_cert=1;
-      while((getline line < cert_file) > 0) print "            " line;
-      next
-    }
-    in_cert && (/^[ ]{12}/ || /^$/) {next}
-    in_cert && !/^[ ]{12}/ {in_cert=0}
-    {print}
-  ' "$CIRCLECI_YAML_FILE" >"${CIRCLECI_YAML_FILE}.tmp" && mv "${CIRCLECI_YAML_FILE}.tmp" "$CIRCLECI_YAML_FILE"
-
-	echo "Certificate updated in $CIRCLECI_YAML_FILE"
 }
 
 function set_secrets_in_circleci_yaml_config(){

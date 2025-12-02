@@ -91,6 +91,29 @@ function test_non_existing_secrets_retrieval_should_fail() {
 }
 
 function test_providing_wrong_certificate_should_fail() {	
+	set_conjur_certificate_in_circleci_yaml "./invalid_cert.pem"
+	upload_github_config
+
+	DEFINITION_ID=$(get_first_definition_id)
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
+	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
+
+	wait_for_workflow "$WORKFLOW_ID" 5 10 "failed"
+	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
+
+	local output
+    output=$(get_step_output_by_name "$JOB_ID" "Fetch Secret")
+
+	assertContains "$output" "::debug Authenticate via Authn-JWT"
+ 	assertContains "$output" "curl: (60) SSL certificate problem: self-signed certificate"
+	assertContains "$output" "Exited with code exit status 60"
+}
+
+function test_existing_empty_secret_retrieval_should_fail() {
+	set_secrets_in_circleci_yaml_config "circleci/emptySecret|FIRST_SECRET"
+	set_conjur_certificate_in_circleci_yaml
+	upload_github_config
+
 	DEFINITION_ID=$(get_first_definition_id)
 	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
@@ -98,15 +121,15 @@ function test_providing_wrong_certificate_should_fail() {
 	wait_for_workflow "$WORKFLOW_ID" 5 10 "failed"
 
 	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
-
+	
 	local output
     output=$(get_step_output_by_name "$JOB_ID" "Fetch Secret")
 
 	assertContains "$output" "::debug Authenticate via Authn-JWT"
  	assertContains "$output" "Authentication Successful."
-	assertContains "$output" "variable:circleci/nonExistingSecret is empty or not found"
+	assertContains "$output" "variable:circleci/emptySecret is empty or not found."
 	assertContains "$output" "Batch retrieval failed, falling to single secret fetch."
-	assertContains "$output" "Secret(s) are empty or not found :: circleci%2FnonExistingSecret"
+ 	assertContains "$output" "Secret(s) are empty or not found :: circleci%2FemptySecret"
 }
 
 # Load shUnit2
