@@ -425,8 +425,8 @@ test_set_environment_var_param_integr_true() {
   
   output=$(set_environment_var 2>&1)
   
-  assertContains "$output" "Secret fetched successfully. fetched :: value1"
-  assertContains "$output" "Secret fetched successfully. fetched :: value2"
+  assertContains "${output}" "Secret fetched successfully. fetched :: value1"
+  assertContains "${output}" "Secret fetched successfully. fetched :: value2"
 }
 
 test_set_environment_var_empty_secrets() {
@@ -436,7 +436,7 @@ test_set_environment_var_empty_secrets() {
 
   output=$(set_environment_var 2>&1)
   
-  assertContains "$output" ""
+  assertContains "${output}" ""
 }
 
 test_set_environment_var_multiple_secrets() {
@@ -451,7 +451,8 @@ test_set_environment_var_multiple_secrets() {
 
   output=$(set_environment_var 2>&1)
 
-  assertContains "$output" "Secret fetched successfully.  Environment variable MY_SECRET=MY_SECRET set."
+  echo "secretMulti: ${secretMulti[*]}"
+  assertContains "${output}" "Secret fetched successfully.  Environment variable MY_SECRET=MY_SECRET set."
 }
 
 # Test the `fetch_secret` function
