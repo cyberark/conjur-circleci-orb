@@ -115,8 +115,7 @@ test_InstallJq_download_linux() {
 
   # Mock 'command' to be state-aware
   command() {
-    local cmd_flag="$1"
-    local cmd_name="$2"
+    local cmd_name="$1"
 
     if [[ "$cmd_name" == "jq" ]]; then
       # If the file exists (downloaded), return success (0)
@@ -162,8 +161,7 @@ test_InstallJq_download_darwin() {
 
   # Mock 'command' to be state-aware
   command() {
-    local cmd_flag="$1"
-    local cmd_name="$2"
+    local cmd_name="$1"
 
     if [[ "$cmd_name" == "jq" ]]; then
       # If the file exists (downloaded), return success (0)
