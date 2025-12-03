@@ -111,52 +111,72 @@ assertRegex() {
 }
 
 test_InstallJq_download_linux() {
-  # Mock jq being missing initially
+  export JQ_PATH="./jq_mock"
+
+  # Mock 'command' to be state-aware
   command() {
-    if [[ "$1" == "-v" ]] && [[ "$2" == "jq" ]]; then
-      return 1 # jq not found
+    local cmd_flag="$1"
+    local cmd_name="$2"
+
+    if [[ "$cmd_name" == "jq" ]]; then
+      # If the file exists (downloaded), return success (0)
+      if [[ -f "$JQ_PATH" ]]; then
+        return 0 
+      else
+        return 1 # Not found yet
+      fi
     fi
-    return 0 # curl found
+    return 0 # return 0 for curl or other commands
   }
   
-  # Mock uname to return Linux
+  # Mock uname
   uname() { echo "Linux"; }
   
-  # Mock curl to capture the download URL
+  # Mock curl to create the file
   curl() {
     if [[ "$*" == *"/jq-linux32"* ]]; then
       echo "Downloaded Linux version" > "$JQ_PATH"
       chmod +x "$JQ_PATH"
     fi
   }
-
-  export JQ_PATH="./jq_mock"
   
   # Run function
   InstallJq
   local status=$?
   
-  # Check if we tried to download the linux version
+  # Check content
   local content
-  content=$(cat "$JQ_PATH")
+  if [[ -f "$JQ_PATH" ]]; then
+      content=$(cat "$JQ_PATH")
+  fi
   
   rm -f "$JQ_PATH"
-  unset -f command uname curl # Cleanup mocks
+  unset -f command uname curl
   
   assertEquals 0 $status
   assertContains "$content" "Downloaded Linux version"
 }
 
 test_InstallJq_download_darwin() {
-  # Mock jq being missing initially
+  export JQ_PATH="./jq_mock_mac"
+
+  # Mock 'command' to be state-aware
   command() {
-    if [[ "$1" == "-v" ]] && [[ "$2" == "jq" ]]; then
-      return 1
+    local cmd_flag="$1"
+    local cmd_name="$2"
+
+    if [[ "$cmd_name" == "jq" ]]; then
+      # If the file exists (downloaded), return success (0)
+      if [[ -f "$JQ_PATH" ]]; then
+        return 0 
+      else
+        return 1 # Not found yet
+      fi
     fi
     return 0
   }
   
-  # Mock uname to return Darwin
+  # Mock uname
   uname() { echo "Darwin Kernel Version"; }
   
   # Mock curl
@@ -166,14 +186,15 @@ test_InstallJq_download_darwin() {
       chmod +x "$JQ_PATH"
     fi
   }
-
-  export JQ_PATH="./jq_mock_mac"
   
   InstallJq
   local status=$?
   
   local content
-  content=$(cat "$JQ_PATH")
+  if [[ -f "$JQ_PATH" ]]; then
+      content=$(cat "$JQ_PATH")
+  fi
+
   rm -f "$JQ_PATH"
   unset -f command uname curl
   
