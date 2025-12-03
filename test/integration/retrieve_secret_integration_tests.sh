@@ -12,7 +12,7 @@ function test_single_secret_retrieval_should_succeed() {
     expected_secret_value="HelloFromFirstSecret"
 
 	set_secrets_in_circleci_yaml_config "circleci/firstSecret|FIRST_SECRET"
-	upload_github_config
+	upload_github_config "test_single_secret_retrieval_should_succeed"
 
 	DEFINITION_ID=$(get_first_definition_id)
 	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
@@ -44,7 +44,7 @@ HelloFromSecondSecret
 EOF
 	)
 	set_secrets_in_circleci_yaml_config "circleci/firstSecret|FIRST_SECRET;circleci/secondSecret|SECOND_SECRET"
-	upload_github_config
+	upload_github_config "test_multiple_secrets_retrieval_should_succeed"
 
 	DEFINITION_ID=$(get_first_definition_id)
 	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
@@ -70,7 +70,7 @@ EOF
 
 function test_non_existing_secrets_retrieval_should_fail() {
 	set_secrets_in_circleci_yaml_config "circleci/nonExistingSecret|NON_EXISTING_SECRET"
-	upload_github_config
+	upload_github_config "test_non_existing_secrets_retrieval_should_fail"
 
 	DEFINITION_ID=$(get_first_definition_id)
 	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
@@ -92,7 +92,7 @@ function test_non_existing_secrets_retrieval_should_fail() {
 
 function test_providing_wrong_certificate_should_fail() {	
 	set_conjur_certificate_in_circleci_yaml "./invalid_cert.pem"
-	upload_github_config
+	upload_github_config "test_providing_wrong_certificate_should_fail"
 
 	DEFINITION_ID=$(get_first_definition_id)
 	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
@@ -112,7 +112,7 @@ function test_providing_wrong_certificate_should_fail() {
 function test_existing_empty_secret_retrieval_should_fail() {
 	set_secrets_in_circleci_yaml_config "circleci/emptySecret|FIRST_SECRET"
 	set_conjur_certificate_in_circleci_yaml
-	upload_github_config
+	upload_github_config "test_existing_empty_secret_retrieval_should_fail"
 
 	DEFINITION_ID=$(get_first_definition_id)
 	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
@@ -131,6 +131,28 @@ function test_existing_empty_secret_retrieval_should_fail() {
 	assertContains "$output" "Batch retrieval failed, falling to single secret fetch."
  	assertContains "$output" "Secret(s) are empty or not found :: circleci%2FemptySecret"
 }
+
+# There is a bug currently and the host access denial is not working as expected.
+# Once fixed this test should be enabled: https://ca-il-jira.il.cyber-ark.com:8443/browse/CNJR-12020
+# function test_host_access_to_variable_should_be_denied() {
+# 	set_secrets_in_circleci_yaml_config "circleci/secretWithoutHostPermit|FIRST_SECRET"
+# 	set_conjur_certificate_in_circleci_yaml
+# 	upload_github_config "test_host_access_to_variable_should_be_denied"
+
+# 	DEFINITION_ID=$(get_first_definition_id)
+# 	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
+# 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
+
+# 	wait_for_workflow "$WORKFLOW_ID" 5 10 "failed"
+
+# 	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
+	
+# 	local output
+#     output=$(get_step_output_by_name "$JOB_ID" "Fetch Secret")
+
+# 	assertContains "$output" "::debug Authenticate via Authn-JWT"
+#  	TODO: Add assertContains for access denied message when the bug is fixed
+# }
 
 # Load shUnit2
 . /usr/bin/shunit2

@@ -16,15 +16,15 @@ GITHUB_API_BASE="https://api.github.com"
 # === GitHub API: Upload config.yml ===
 # Uploads a local config.yml to the GitHub repo as .circleci/config.yml
 function upload_github_config() {
-	echo "[SETUP] Uploading GitHub config.yml"
-
+	local COMMIT_MESSAGE="${1:-Update CircleCI config.yml for Conjur integration tests}"
 	local FILE_PATH_IN_REPO=".circleci/config.yml"
-	local COMMIT_MESSAGE="Add demo upload test file"
 	local CONTENT
 	local ENCODED_CONTENT
 	local SHA
 	local JSON_BODY
 	local HTTP_STATUS
+
+	echo "[SETUP] Uploading GitHub config.yml"
 
 	CONTENT=$(cat test/integration/ci/config.yml)
 	ENCODED_CONTENT=$(echo -n "$CONTENT" | base64 -w 0)
