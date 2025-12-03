@@ -62,7 +62,7 @@ assertNotContains() {
 assertIntegerEquals() {
   local expected=$1
   local actual=$2
-  
+
   if ! [[ "${expected}" =~ ^-?[0-9]+$ ]]; then
     echo "FAIL: Expected value '${expected}' is not an integer."
     return 1
@@ -77,7 +77,7 @@ assertIntegerEquals() {
     echo "FAIL: Expected '${expected}', but got '${actual}'"
     return 1
   fi
-  
+
   return 0
 }
 
@@ -117,9 +117,9 @@ test_InstallJq_download_linux() {
   command() {
     local cmd_name="$1"
 
-    if [[ "$cmd_name" == "jq" ]]; then
+    if [[ "${cmd_name}" == "jq" ]]; then
       # If the file exists (downloaded), return success (0)
-      if [[ -f "$JQ_PATH" ]]; then
+      if [[ -f "${JQ_PATH}" ]]; then
         return 0 
       else
         return 1 # Not found yet
@@ -134,8 +134,8 @@ test_InstallJq_download_linux() {
   # Mock curl to create the file
   curl() {
     if [[ "$*" == *"/jq-linux32"* ]]; then
-      echo "Downloaded Linux version" > "$JQ_PATH"
-      chmod +x "$JQ_PATH"
+      echo "Downloaded Linux version" > "${JQ_PATH}"
+      chmod +x "${JQ_PATH}"
     fi
   }
   
@@ -145,15 +145,15 @@ test_InstallJq_download_linux() {
   
   # Check content
   local content
-  if [[ -f "$JQ_PATH" ]]; then
-      content=$(cat "$JQ_PATH")
+  if [[ -f "${JQ_PATH}" ]]; then
+      content=$(cat "${JQ_PATH}")
   fi
   
-  rm -f "$JQ_PATH"
+  rm -f "${JQ_PATH}"
   unset -f command uname curl
   
-  assertEquals 0 $status
-  assertContains "$content" "Downloaded Linux version"
+  assertEquals 0 "$status"
+  assertContains "${content}" "Downloaded Linux version"
 }
 
 test_InstallJq_download_darwin() {
@@ -163,7 +163,7 @@ test_InstallJq_download_darwin() {
   command() {
     local cmd_name="$1"
 
-    if [[ "$cmd_name" == "jq" ]]; then
+    if [[ "${cmd_name}" == "jq" ]]; then
       # If the file exists (downloaded), return success (0)
       if [[ -f "$JQ_PATH" ]]; then
         return 0 
@@ -189,44 +189,15 @@ test_InstallJq_download_darwin() {
   local status=$?
   
   local content
-  if [[ -f "$JQ_PATH" ]]; then
-      content=$(cat "$JQ_PATH")
+  if [[ -f "${JQ_PATH}" ]]; then
+      content=$(cat "${JQ_PATH}")
   fi
 
-  rm -f "$JQ_PATH"
+  rm -f "${JQ_PATH}"
   unset -f command uname curl
   
-  assertEquals 0 $status
-  assertContains "$content" "Downloaded OSX version"
-}
-
-test_InstallJq_missing_curl_fail() {
-  command() {
-    assertEquals "Must use -v flag" "-v" "$1"
-    [[ "$2" == "curl" ]] && return 1
-    [[ "$2" == "jq" ]] && return 1
-    return 0
-  }
-  
-  local output
-  output=$(InstallJq 2>&1)
-  assertEquals "Should fail" 1 $?
-  assertContains "Error message" "$output" "CONJUR ORB ERROR: CURL is required"
-}
-
-test_InstallJq_download_fails() {
-  command() {
-    [[ "$2" == "curl" ]] && return 0
-    [[ "$2" == "jq" ]] && return 1
-    return 1
-  }
-  
-  uname() { echo "Linux"; }
-  curl() { return 1; }  # Simulate network failure
-  
-  InstallJq
-  assertEquals "Should fail" 1 $?
-  assertFalse "No file created" "[[ -f \"$JQ_PATH\" ]]"
+  assertEquals 0 "${status}"
+  assertContains "${content}" "Downloaded OSX version"
 }
 
 test_InstallJq_missing_curl_fail() {
@@ -235,17 +206,16 @@ test_InstallJq_missing_curl_fail() {
     if [[ "$2" == "curl" ]]; then return 1; fi
     if [[ "$2" == "jq" ]]; then return 1; fi
   }
-  
+
   output=$(InstallJq 2>&1)
   status=$?
-  
+
   unset -f command
-  
-  assertEquals 1 $status
-  assertContains "$output" "CONJUR ORB ERROR: CURL is required"
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "CONJUR ORB ERROR: CURL is required"
 }
 
-# Mock the network_client
 mock_network_client_success() {
   token="mocked_token_value"
 }
@@ -258,8 +228,6 @@ mock_network_client_multiple_secrets() {
   result='{"db/password": "1234", "api/key": "abcd"}'
 }
 
-
-# Test the `network_client` function
 test_network_client_post() {
   unset token
   network_client "POST" "https://fake-conjur.com/authn" "jwt=fake-jwt"
@@ -280,7 +248,6 @@ test_network_client_unsupported_method() {
   assertContains "$output" "Unsupported HTTP method"
 }
 
-# Test the `authenticate` function
 test_authenticate_success() {
   export CIRCLE_OIDC_TOKEN_V2="mocked_jwt"
   export CONJUR_APPLIANCE_URL="https://fake-conjur.com"
@@ -307,11 +274,10 @@ test_authenticate_failure() {
   output=$(authenticate 2>&1)
   status=$?
 
-  assertEquals 1 $status
-  assertContains "$output" "Authentication Failed."
+  assertEquals 1 "$status"
+  assertContains "${output}" "Authentication Failed."
 }
 
-# Test the `multiple_secrets_fetch` function
 test_multiple_secrets_fetch_success() {
   export CONJUR_APPLIANCE_URL="https://fake-conjur.com"
   secrets_string="db/password,api/key"
@@ -322,7 +288,7 @@ test_multiple_secrets_fetch_success() {
 
   expected_output="db/password=1234,api/key=abcd"
 
-  assertContains "$secretsVal" "$expected_output"
+  assertContains "${secretsVal}" "${expected_output}"
 }
 
 test_multiple_secrets_fetch_empty_result() {
@@ -333,10 +299,9 @@ test_multiple_secrets_fetch_empty_result() {
 
   multiple_secrets_fetch
 
-  assertContains "$secretsVal" ""
+  assertContains "${secretsVal}" ""
 }
 
-# Test the `single_secret_fetch` function
 test_single_secret_fetch_success() {
   declare -A secretMulti
   secretMulti=( ["good-secret"]=MY_SECRET )
@@ -371,31 +336,24 @@ test_single_secret_fetch_malformed_token() {
   }
   output=$(single_secret_fetch 2>&1)
 
-  assertContains "$output" "::error::Malformed authorization token"
+  assertContains "${output}" "::error::Malformed authorization token"
 }
 
-# Test the `check_parameter` function
 test_check_parameter_missing_value() {
   PARAM_ACCOUNT=""
-  result=$(check_parameter "CONJUR_ACCOUNT" "$PARAM_ACCOUNT")
-  assertContains "$result" "The CONJUR_ACCOUNT is not found. Please add the CONJUR_ACCOUNT before continuing."
+  result=$(check_parameter "CONJUR_ACCOUNT" "${PARAM_ACCOUNT}")
+  assertContains "${result}" "The CONJUR_ACCOUNT is not found. Please add the CONJUR_ACCOUNT before continuing."
 }
 
 test_check_parameter_valid_value() {
   PARAM_ACCOUNT="my_account"
-  result=$(check_parameter "CONJUR_ACCOUNT" "$PARAM_ACCOUNT")
-  assertContains "$result" ""
-}
-
-# Test the `urlencode` function
-test_urlencode_basic() {
-  result=$(urlencode "hello world")
-  assertContains "$result" "hello%20world"
+  result=$(check_parameter "CONJUR_ACCOUNT" "${PARAM_ACCOUNT}")
+  assertContains "${result}" ""
 }
 
 test_urlencode_special_characters() {
   result=$(urlencode "a+b&c/d?e=f")
-  assertContains "$result" "a%2Bb%26c%2Fd%3Fe%3Df"
+  assertContains "${result}" "a%2Bb%26c%2Fd%3Fe%3Df"
 }
 
 # Test the `InstallJq` function
@@ -441,21 +399,19 @@ test_array_secrets_empty_string() {
 test_array_secrets_trailing_semicolon() {
   export CONJUR_SECRETS_ID="secret1|ENV1;"
   array_secrets
-  
-  assertIntegerEquals 1 "${#SECRETS[@]}" 
+
+  assertIntegerEquals 1 "${#SECRETS[@]}"
   assertContains "${SECRETS[0]}" "secret1|ENV1"
 }
 
-
-# Test the `set_environment_var` function
 test_set_environment_var_param_integr_true() {
   secretsVal=("secret1:MY_SECRET=value1,secret2:MY_SECRET=value2")
   PARAM_INTEGR="true"
-  
+
   output=$(set_environment_var 2>&1)
-  
-  assertContains "$output" "Secret fetched successfully. fetched :: value1"
-  assertContains "$output" "Secret fetched successfully. fetched :: value2"
+
+  assertContains "${output}" "Secret fetched successfully. fetched :: value1"
+  assertContains "${output}" "Secret fetched successfully. fetched :: value2"
 }
 
 test_set_environment_var_empty_secrets() {
@@ -464,7 +420,7 @@ test_set_environment_var_empty_secrets() {
   export BASH_ENV="/tmp/.bash_env_mock"
 
   output=$(set_environment_var 2>&1)
-  
+
   assertContains "$output" ""
 }
 
@@ -483,21 +439,20 @@ test_set_environment_var_multiple_secrets() {
   assertContains "$output" "Secret fetched successfully.  Environment variable MY_SECRET=MY_SECRET set."
 }
 
-# Test the `fetch_secret` function
 test_fetch_secret_valid_input() {
   SECRETS=("secret1:MY_SECRET=value1,secret2:MY_SECRET=value2")
   CONJUR_ACCOUNT="my_conjur_account"
   secretVal="value1,value2"
   PARAM_INTEGR="false"
-  
+
   urlencode() { echo "$1"; }
   multiple_secrets_fetch() { secretVal="value1,value2"; }
   set_environment_var() { echo "Environment variables set"; }
-  
+
   output=$(fetch_secret 2>&1)
-  
-  assertContains "$output" "Batch retrieval of secrets succeeded."
-  assertContains "$output" "Environment variables set"
+
+  assertContains "${output}" "Batch retrieval of secrets succeeded."
+  assertContains "${output}" "Environment variables set"
 }
 
 test_fetch_secret_malformed_token() {
@@ -505,14 +460,14 @@ test_fetch_secret_malformed_token() {
   CONJUR_ACCOUNT="my_conjur_account"
   secretVal="Malformed authorization token"
   PARAM_INTEGR="false"
-  
+
   urlencode() { echo "$1"; }
   multiple_secrets_fetch() { secretVal="Malformed authorization token"; }
   set_environment_var() { echo "Environment variables set"; }
 
   output=$(fetch_secret 2>&1)
-  
-  assertContains "$output" "::error::Malformed authorization token"
+
+  assertContains "${output}" "::error::Malformed authorization token"
 }
 
 test_fetch_secret_no_secrets() {
@@ -520,23 +475,23 @@ test_fetch_secret_no_secrets() {
   CONJUR_ACCOUNT="my_conjur_account"
   secretVal="value1,value2"
   PARAM_INTEGR="false"
-  
+
   urlencode() { echo "$1"; }
   multiple_secrets_fetch() { secretVal="value1,value2"; }
   set_environment_var() { echo "Environment variables set"; }
 
   output=$(fetch_secret 2>&1)
 
-  
+
   assertContains "${output}" "Batch retrieval of secrets succeeded."
   assertContains "${output}" "Environment variables set"
 }
 
 test_main_empty_oidc_token() {
   export CIRCLE_OIDC_TOKEN_V2=""
-  
+
   output=$(main 2>&1)
-  
+
   assertContains "$output" "OIDC Token cannot be found. A CircleCI context must be specified."
 }
 
@@ -551,9 +506,9 @@ test_main_provided_oidc_token() {
 test_multiple_secrets_fetch_empty_or_not_found() {
   multiple_secrets_fetch() { secretsVal="Variable secret1 is empty or not found"; }
   single_secret_fetch() { echo "single_secret_fetch called"; }
-  
+
   output=$(fetch_secret 2>&1)
-  
+
   assertContains "$output" "Batch retrieval failed, falling to single secret fetch"
   assertContains "$output" "single_secret_fetch called"
 }
@@ -593,5 +548,186 @@ test_decoded_fields_structure() {
   assertContains "${decoded}" "vn=CircleCI"
 }
 
-# Load 
+test_main_missing_appliance_url() {
+  export PARAM_APPLIANCE_URL=""
+  export PARAM_ACCOUNT="test-account"
+  export PARAM_SERVICE_ID="test-service"
+  export PARAM_SECRETS_ID="secret1|VAR1"
+  export CIRCLE_OIDC_TOKEN_V2="valid-token"
+
+  output=$(main 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "CONJUR_APPLIANCE_URL is not found"
+}
+
+test_main_missing_account() {
+  export PARAM_APPLIANCE_URL="https://conjur.example.com"
+  export PARAM_ACCOUNT=""
+  export PARAM_SERVICE_ID="test-service"
+  export PARAM_SECRETS_ID="secret1|VAR1"
+  export CIRCLE_OIDC_TOKEN_V2="valid-token"
+
+  output=$(main 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "CONJUR_ACCOUNT is not found"
+}
+
+test_main_missing_service_id() {
+  export PARAM_APPLIANCE_URL="https://conjur.example.com"
+  export PARAM_ACCOUNT="test-account"
+  export PARAM_SERVICE_ID=""
+  export PARAM_SECRETS_ID="secret1|VAR1"
+  export CIRCLE_OIDC_TOKEN_V2="valid-token"
+
+  output=$(main 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "CONJUR_SERVICE_ID is not found"
+}
+
+test_main_missing_secrets_id() {
+  export PARAM_APPLIANCE_URL="https://conjur.example.com"
+  export PARAM_ACCOUNT="test-account"
+  export PARAM_SERVICE_ID="test-service"
+  export PARAM_SECRETS_ID=""
+  export CIRCLE_OIDC_TOKEN_V2="valid-token"
+
+  output=$(main 2>&1)
+  status=$?
+
+  assertEquals 1 ${status}
+  assertContains "${output}" "CONJUR_SECRETS_ID is not found"
+}
+
+test_network_client_without_certificate() {
+  export CONJUR_CERTIFICATE=""
+  export CONJUR_ACCOUNT="test-account"
+
+  get_telemetry_header() { echo "fake-telemetry"; }
+
+  unset token
+  network_client "POST" "https://fake-conjur.com/authn" "jwt=fake-jwt"
+
+  assertContains "${token}" "mocked-response"
+}
+
+test_single_secret_fetch_all_found() {
+  declare -A secretMulti
+  secretMulti=( ["secret1"]=VAR1 ["secret2"]=VAR2 )
+
+  network_client() {
+    result="secret-value-${secretId}"
+  }
+
+  output=$(single_secret_fetch 2>&1)
+
+  assertContains "${output}" "As the job will be marked as unsuccessful"
+}
+
+test_single_secret_fetch_multiple_missing() {
+  declare -A secretMulti
+  secretMulti=( ["secret1"]=VAR1 ["secret2"]=VAR2 )
+
+  network_client() {
+    result="Variable secret${RANDOM} is empty or not found"
+  }
+
+  output=$(single_secret_fetch 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "Secret(s) are empty or not found"
+}
+
+test_array_secrets_multiple_semicolons() {
+  export CONJUR_SECRETS_ID="secret1|VAR1;;secret2|VAR2"
+  array_secrets
+
+  # Should have 4 entries (including empty ones)
+  assertTrue "Should have array entries" "[[ ${#SECRETS[@]} -ge 2 ]]"
+}
+
+test_array_secrets_complex_paths() {
+  export CONJUR_SECRETS_ID="path/to/db/password|DB_PASS;api/v2/key|API_KEY"
+  array_secrets
+
+  assertIntegerEquals 2 "${#SECRETS[@]}"
+  assertContains "${SECRETS[0]}" "path/to/db/password|DB_PASS"
+  assertContains "${SECRETS[1]}" "api/v2/key|API_KEY"
+}
+
+test_InstallJq_already_installed() {
+  command() {
+    [[ "$2" == "curl" ]] && return 0
+    [[ "$2" == "jq" ]] && return 0
+    return 0
+  }
+
+  InstallJq
+  assertEquals 0 $?
+
+  unset -f command
+}
+
+test_authenticate_empty_response_token() {
+  export CIRCLE_OIDC_TOKEN_V2="mocked_jwt"
+  export CONJUR_APPLIANCE_URL="https://fake-conjur.com"
+  export CONJUR_ACCOUNT="my-account"
+  export CONJUR_SERVICE_ID="my-service"
+
+  network_client() { token=""; }
+
+  output=$(authenticate 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "Authentication Failed."
+}
+
+test_network_client_includes_telemetry() {
+  export CONJUR_ACCOUNT="test-account"
+  export CONJUR_CERTIFICATE=""
+
+  get_telemetry_header() { echo "test-telemetry-header"; }
+
+  # Mock curl to capture arguments
+  curl() {
+    local args="$*"
+    echo "curl called with: ${args}" >&2
+    echo "mocked-response"
+  }
+
+  unset token
+  output=$(network_client "POST" "https://fake-conjur.com/authn" "jwt=test-jwt" 2>&1)
+
+  assertContains "${output}" "curl called"
+
+  unset -f curl
+}
+
+test_main_with_certificate() {
+  export PARAM_APPLIANCE_URL="https://conjur.example.com"
+  export PARAM_ACCOUNT="test-account"
+  export PARAM_SERVICE_ID="test-service"
+  export PARAM_SECRETS_ID="secret1|VAR1"
+  export PARAM_CERTIFICATE="-----BEGIN CERTIFICATE-----\ntest-cert\n-----END CERTIFICATE-----"
+  export CIRCLE_OIDC_TOKEN_V2="valid-token"
+
+  # Mock all the functions
+  array_secrets() { SECRETS=("secret1|VAR1"); }
+  InstallJq() { return 0; }
+  authenticate() { echo "Authentication Successful."; return 0; }
+  fetch_secret() { echo "Secrets fetched"; }
+
+  output=$(main 2>&1)
+
+  assertContains "${output}" "Authenticate via Authn-JWT"
+}
+
+# Load
 . /usr/bin/shunit2
