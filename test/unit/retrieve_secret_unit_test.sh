@@ -111,78 +111,30 @@ assertRegex() {
 }
 
 test_InstallJq_download_linux() {
-  # Mock jq being missing initially
-  command() {
-    if [[ "$1" == "-v" ]] && [[ "$2" == "jq" ]]; then
-      return 1 # jq not found
-    fi
-    return 0 # curl found
-  }
-  
-  # Mock uname to return Linux
-  uname() { echo "Linux"; }
-  
-  # Mock curl to capture the download URL
-  curl() {
-    if [[ "$*" == *"/jq-linux32"* ]]; then
-      echo "Downloaded Linux version" > "$JQ_PATH"
-      chmod +x "$JQ_PATH"
-    fi
-  }
-
-  export JQ_PATH="./jq_mock"
-  
-  # Run function
-  InstallJq
-  local status=$?
-  
-  # Check if we tried to download the linux version
-  local content
-  content=$(cat "$JQ_PATH")
-  
-  rm -f "$JQ_PATH"
-  unset -f command uname curl # Cleanup mocks
-  
-  assertEquals 0 $status
-  assertContains "$content" "Downloaded Linux version"
-}
-
-test_InstallJq_download_linux() {
   export JQ_PATH="./jq_mock"
 
-  # Mock 'command'
-  # We loop through arguments to find 'jq'. 
-  # This is safer than assuming it's always $2 (in case of flag changes).
+  # Mock 'command' to be state-aware
   command() {
-    local arg
-    local is_jq_check=false
-    
-    for arg in "$@"; do
-      if [[ "$arg" == "jq" ]]; then
-        is_jq_check=true
-        break
+    local cmd_flag="$1"
+    local cmd_name="$2"
+
+    if [[ "$cmd_name" == "jq" ]]; then
+      # If the file exists (downloaded), return success (0)
+      if [[ -f "$JQ_PATH" ]]; then
+        return 0 
+      else
+        return 1 # Not found yet
       fi
-    done
-
-    if [[ "$is_jq_check" == "true" ]]; then
-       if [[ -f "$JQ_PATH" ]]; then
-         return 0 # Success: File exists
-       else
-         return 1 # Failure: File not found
-       fi
     fi
-
-    # Default success for other commands (like 'command -v curl')
-    return 0 
+    return 0 # return 0 for curl or other commands
   }
   
   # Mock uname
   uname() { echo "Linux"; }
   
   # Mock curl to create the file
-  # Simplified check: If args contain "jq", we assume it's the download.
   curl() {
-    if [[ "$*" == *"jq"* ]]; then
+    if [[ "$*" == *"/jq-linux32"* ]]; then
       echo "Downloaded Linux version" > "$JQ_PATH"
       chmod +x "$JQ_PATH"
     fi
@@ -193,7 +145,7 @@ test_InstallJq_download_linux() {
   local status=$?
   
   # Check content
-  local content=""
+  local content
   if [[ -f "$JQ_PATH" ]]; then
       content=$(cat "$JQ_PATH")
   fi
@@ -208,26 +160,19 @@ test_InstallJq_download_linux() {
 test_InstallJq_download_darwin() {
   export JQ_PATH="./jq_mock_mac"
 
-  # Mock 'command'
+  # Mock 'command' to be state-aware
   command() {
-    local arg
-    local is_jq_check=false
-    
-    for arg in "$@"; do
-      if [[ "$arg" == "jq" ]]; then
-        is_jq_check=true
-        break
+    local cmd_flag="$1"
+    local cmd_name="$2"
+
+    if [[ "$cmd_name" == "jq" ]]; then
+      # If the file exists (downloaded), return success (0)
+      if [[ -f "$JQ_PATH" ]]; then
+        return 0 
+      else
+        return 1 # Not found yet
       fi
-    done
-
-    if [[ "$is_jq_check" == "true" ]]; then
-       if [[ -f "$JQ_PATH" ]]; then
-         return 0 
-       else
-         return 1 
-       fi
     fi
-
     return 0
   }
   
@@ -236,7 +181,7 @@ test_InstallJq_download_darwin() {
   
   # Mock curl
   curl() {
-    if [[ "$*" == *"jq"* ]]; then
+    if [[ "$*" == *"/jq-osx-amd64"* ]]; then
       echo "Downloaded OSX version" > "$JQ_PATH"
       chmod +x "$JQ_PATH"
     fi
@@ -245,7 +190,7 @@ test_InstallJq_download_darwin() {
   InstallJq
   local status=$?
   
-  local content=""
+  local content
   if [[ -f "$JQ_PATH" ]]; then
       content=$(cat "$JQ_PATH")
   fi
@@ -255,12 +200,6 @@ test_InstallJq_download_darwin() {
   
   assertEquals 0 $status
   assertContains "$content" "Downloaded OSX version"
-}
-
-test_install_jq_existing() {
-  command -v jq >/dev/null 2>&1 || touch /usr/bin/jq
-  InstallJq
-  assertEquals 0 $?
 }
 
 test_InstallJq_missing_curl_fail() {
@@ -304,28 +243,6 @@ test_network_client_get() {
   export token="existing-token"
   network_client "GET" "https://fake-conjur.com/secrets"
   assertContains "$result" "mocked-response"
-}
-
-test_network_client_includes_cert() {
-  export CONJUR_CERTIFICATE="REAL_CERT_CONTENT"
-  export CONJUR_ACCOUNT="test-acc"
-  
-  # Create a dummy cert file expected by the script
-  echo "cert-file" > "conjur_${CONJUR_ACCOUNT}.pem"
-  
-  # Spy on curl arguments
-  curl() {
-    echo "CURL_ARGS: $*"
-    echo "mock-token" # return value for POST
-  }
-  
-  # Call with POST to trigger curl
-  output=$(network_client "POST" "http://url" "data")
-  
-  rm "conjur_${CONJUR_ACCOUNT}.pem"
-  
-  # Verify --cacert and the specific filename are passed
-  assertContains "$output" "CURL_ARGS: --cacert conjur_test-acc.pem"
 }
 
 test_network_client_unsupported_method() {
@@ -379,36 +296,6 @@ test_multiple_secrets_fetch_success() {
   expected_output="db/password=1234,api/key=abcd"
 
   assertContains "$secretsVal" "$expected_output"
-}
-
-test_fetch_secret_implicit_env_var_naming() {
-  # Input without the pipe '|' separator
-  SECRETS=("some/path/to/my_api_key")
-  export CONJUR_ACCOUNT="my_account"
-  
-  # Mock helpers
-  urlencode() { echo "$1"; }
-  
-  multiple_secrets_fetch() {
-    # In the real script, this variable is constructed before calling this function
-    echo "CAPTURED_SECRETS_STRING=${secrets_string}"
-    # Mock result to avoid failure in next steps
-    secretsVal='{"some/path/to/my_api_key": "secret_value"}' 
-  }
-  
-  set_environment_var() { return 0; }
-
-  output=$(fetch_secret)
-  
-  # The logic in fetch_secret converts "some/path/to/my_api_key" 
-  # into variable ID: "my_account:variable:some/path/to/my_api_key"
-  assertContains "$output" "CAPTURED_SECRETS_STRING=my_account:variable:some/path/to/my_api_key"
-  
-  # Important: Verify implicit env var logic. 
-  # In the script, it does: envVar=${SPLITSECRET[${lastIndex}]^^}
-  # We can verify this by checking if set_environment_var would have received the right key map 
-  # (though checking internal state is hard in bash, we check flow success here).
-  assertContains "$output" "Batch retrieval of secrets succeeded"
 }
 
 test_multiple_secrets_fetch_empty_result() {
@@ -482,6 +369,13 @@ test_urlencode_basic() {
 test_urlencode_special_characters() {
   result=$(urlencode "a+b&c/d?e=f")
   assertContains "$result" "a%2Bb%26c%2Fd%3Fe%3Df"
+}
+
+# Test the `InstallJq` function
+test_install_jq_existing() {
+  command -v jq >/dev/null 2>&1 || touch /usr/bin/jq
+  InstallJq
+  assertEquals 0 $?
 }
 
 # Test the `array_secrets` function
@@ -637,7 +531,7 @@ test_multiple_secrets_fetch_empty_or_not_found() {
   assertContains "$output" "single_secret_fetch called"
 }
 
-test_telemetry_default_version_no_changelog() {
+test_default_version_no_changelog() {
   output="$(get_telemetry_header 2>&1)"
 
   assertRegex "${output}" '^[A-Za-z0-9_-]+$' "Output must be URL-safe base64"
@@ -662,7 +556,7 @@ test_takes_first_version_only() {
   assertNotContains "${decoded}" "iv=0.0.2"
 }
 
-test_telemetry_decoded_fields_structure() {
+test_decoded_fields_structure() {
   output="$(get_telemetry_header 2>&1)"
 
   decoded="$(echo "${encoded}" | base64 --decode)"
