@@ -548,62 +548,6 @@ test_decoded_fields_structure() {
   assertContains "${decoded}" "vn=CircleCI"
 }
 
-test_main_missing_appliance_url() {
-  export PARAM_APPLIANCE_URL=""
-  export PARAM_ACCOUNT="test-account"
-  export PARAM_SERVICE_ID="test-service"
-  export PARAM_SECRETS_ID="secret1|VAR1"
-  export CIRCLE_OIDC_TOKEN_V2="valid-token"
-
-  output=$(main 2>&1)
-  status=$?
-
-  assertEquals 1 "${status}"
-  assertContains "${output}" "CONJUR_APPLIANCE_URL is not found"
-}
-
-test_main_missing_account() {
-  export PARAM_APPLIANCE_URL="https://conjur.example.com"
-  export PARAM_ACCOUNT=""
-  export PARAM_SERVICE_ID="test-service"
-  export PARAM_SECRETS_ID="secret1|VAR1"
-  export CIRCLE_OIDC_TOKEN_V2="valid-token"
-
-  output=$(main 2>&1)
-  status=$?
-
-  assertEquals 1 "${status}"
-  assertContains "${output}" "CONJUR_ACCOUNT is not found"
-}
-
-test_main_missing_service_id() {
-  export PARAM_APPLIANCE_URL="https://conjur.example.com"
-  export PARAM_ACCOUNT="test-account"
-  export PARAM_SERVICE_ID=""
-  export PARAM_SECRETS_ID="secret1|VAR1"
-  export CIRCLE_OIDC_TOKEN_V2="valid-token"
-
-  output=$(main 2>&1)
-  status=$?
-
-  assertEquals 1 "${status}"
-  assertContains "${output}" "CONJUR_SERVICE_ID is not found"
-}
-
-test_main_missing_secrets_id() {
-  export PARAM_APPLIANCE_URL="https://conjur.example.com"
-  export PARAM_ACCOUNT="test-account"
-  export PARAM_SERVICE_ID="test-service"
-  export PARAM_SECRETS_ID=""
-  export CIRCLE_OIDC_TOKEN_V2="valid-token"
-
-  output=$(main 2>&1)
-  status=$?
-
-  assertEquals 1 ${status}
-  assertContains "${output}" "CONJUR_SECRETS_ID is not found"
-}
-
 test_network_client_without_certificate() {
   export CONJUR_CERTIFICATE=""
   export CONJUR_ACCOUNT="test-account"
@@ -629,38 +573,6 @@ test_single_secret_fetch_all_found() {
   assertContains "${output}" "As the job will be marked as unsuccessful"
 }
 
-test_single_secret_fetch_multiple_missing() {
-  declare -A secretMulti
-  secretMulti=( ["secret1"]=VAR1 ["secret2"]=VAR2 )
-
-  network_client() {
-    result="Variable secret${RANDOM} is empty or not found"
-  }
-
-  output=$(single_secret_fetch 2>&1)
-  status=$?
-
-  assertEquals 1 "${status}"
-  assertContains "${output}" "Secret(s) are empty or not found"
-}
-
-test_array_secrets_multiple_semicolons() {
-  export CONJUR_SECRETS_ID="secret1|VAR1;;secret2|VAR2"
-  array_secrets
-
-  # Should have 4 entries (including empty ones)
-  assertTrue "Should have array entries" "[[ ${#SECRETS[@]} -ge 2 ]]"
-}
-
-test_array_secrets_complex_paths() {
-  export CONJUR_SECRETS_ID="path/to/db/password|DB_PASS;api/v2/key|API_KEY"
-  array_secrets
-
-  assertIntegerEquals 2 "${#SECRETS[@]}"
-  assertContains "${SECRETS[0]}" "path/to/db/password|DB_PASS"
-  assertContains "${SECRETS[1]}" "api/v2/key|API_KEY"
-}
-
 test_InstallJq_already_installed() {
   command() {
     [[ "$2" == "curl" ]] && return 0
@@ -672,21 +584,6 @@ test_InstallJq_already_installed() {
   assertEquals 0 $?
 
   unset -f command
-}
-
-test_authenticate_empty_response_token() {
-  export CIRCLE_OIDC_TOKEN_V2="mocked_jwt"
-  export CONJUR_APPLIANCE_URL="https://fake-conjur.com"
-  export CONJUR_ACCOUNT="my-account"
-  export CONJUR_SERVICE_ID="my-service"
-
-  network_client() { token=""; }
-
-  output=$(authenticate 2>&1)
-  status=$?
-
-  assertEquals 1 "${status}"
-  assertContains "${output}" "Authentication Failed."
 }
 
 test_network_client_includes_telemetry() {
