@@ -6,7 +6,6 @@ if [[ -z "${DEPLOYMENT_TYPE:-}" && $# -gt 0 ]]; then
     DEPLOYMENT_TYPE="${1}"
 fi
 
-# Export DEPLOYMENT_TYPE so it's available to sourced scripts
 export DEPLOYMENT_TYPE
 
 CONJUR_LEADER_CONTAINER="conjur-leader-1.mycompany.local"
