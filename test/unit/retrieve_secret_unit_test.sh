@@ -311,18 +311,20 @@ test_multiple_secrets_fetch_empty_result() {
 test_single_secret_fetch_success() {
   declare -A secretMulti
   secretMulti=( ["good-secret"]=MY_SECRET )
+  echo "secretMulti: ${secretMulti[*]}"
 
   network_client() {
     result="my-secret-value"
   }
   output=$(single_secret_fetch 2>&1)
 
-  assertContains "$output" "As the job will be marked as unsuccessful"
+  assertContains "${output}" "As the job will be marked as unsuccessful"
 }
 
 test_single_secret_fetch_empty_secret() {
   declare -A secretMulti
   secretMulti=( ["missing-secret"]=MY_SECRET )
+  echo "secretMulti: ${secretMulti[*]}"
 
   network_client() {
     result="Variable missing-secret is empty or not found"
@@ -336,6 +338,7 @@ test_single_secret_fetch_empty_secret() {
 test_single_secret_fetch_malformed_token() {
   declare -A secretMulti
   secretMulti=( ["bad-token"]=MY_SECRET )
+  echo "secretMulti: ${secretMulti[*]}"
 
   network_client() {
     result="Malformed authorization token"
