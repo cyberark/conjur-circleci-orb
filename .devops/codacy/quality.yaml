@@ -17,9 +17,6 @@
 # securityIssueThreshold: 0           - Default: 1 - Quality gate will fail if the number of new security issues is over this threshold. This value cannot be negative
 
 ---
-exclude_paths:
-  - "CHANGELOG.md"
-  - "test/unit/**/ *.sh"
 goals:
   fileComplexityValueThreshold: 10
   fileDuplicationBlockThreshold: 1
