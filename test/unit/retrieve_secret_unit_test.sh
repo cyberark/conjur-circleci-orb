@@ -32,11 +32,29 @@ assertContains() {
   local string="$1"
   local substring="$2"
 
-  echo "$string" | grep -qF -- "$substring"
+  echo "${string}" | grep -qF -- "${substring}"
   local status=$?
 
-  if [[ $status -ne 0 ]]; then
-    echo "Expected to find '$substring' in '$string'"
+  if [[ ${status} -ne 0 ]]; then
+    echo "Expected to find '${substring}' in '${string}'"
+    return 1
+  fi
+}
+
+assertNotContains() {
+  local string="$1"
+  local substring="$2"
+  local message="${3:-}"
+
+  echo "${string}" | grep -qF -- "${substring}"
+  local status=$?
+
+  if [[ ${status} -eq 0 ]]; then
+    if [[ -n "${message}" ]]; then
+      echo "${message}"
+    else
+      echo "Expected NOT to find '${substring}' in '${string}'"
+    fi
     return 1
   fi
 }
@@ -45,24 +63,158 @@ assertIntegerEquals() {
   local expected=$1
   local actual=$2
   
-  if ! [[ "$expected" =~ ^-?[0-9]+$ ]]; then
-    echo "FAIL: Expected value '$expected' is not an integer."
+  if ! [[ "${expected}" =~ ^-?[0-9]+$ ]]; then
+    echo "FAIL: Expected value '${expected}' is not an integer."
     return 1
   fi
 
-  if ! [[ "$actual" =~ ^-?[0-9]+$ ]]; then
-    echo "FAIL: Actual value '$actual' is not an integer."
+  if ! [[ "${actual}" =~ ^-?[0-9]+$ ]]; then
+    echo "FAIL: Actual value '${actual}' is not an integer."
     return 1
   fi
 
-  if [[ "$expected" -ne "$actual" ]]; then
-    echo "FAIL: Expected '$expected', but got '$actual'"
+  if [[ "${expected}" -ne "${actual}" ]]; then
+    echo "FAIL: Expected '${expected}', but got '${actual}'"
     return 1
   fi
   
   return 0
 }
 
+assertRegex() {
+ local actual=""
+ local pattern=""
+ local message=""
+ # Handle optional message parameter
+ if [[ $# -eq 3 ]]; then
+   actual="$1"
+   pattern="$2"
+   message="$3"
+ elif [[ $# -eq 2 ]]; then
+   actual="$1"
+   pattern="$2"
+ else
+   fail "assertRegex requires 2 or 3 arguments"
+   return "${SHUNIT_FALSE}"
+ fi
+ # Test if actual matches pattern
+ if [[ "${actual}" =~ ${pattern} ]]; then
+   return "${SHUNIT_TRUE}"
+ else
+   if [[ -n "${message}" ]]; then
+     _shunit_assertFail "${message}: expected regex [${pattern}] but was [${actual}]"
+   else
+     _shunit_assertFail "expected regex [${pattern}] but was [${actual}]"
+   fi
+   return "${SHUNIT_FALSE}"
+ fi
+}
+
+test_InstallJq_download_linux() {
+  export JQ_PATH="./jq_mock"
+
+  # Mock 'command' to be state-aware
+  command() {
+    local cmd_name="$1"
+
+    if [[ "$cmd_name" == "jq" ]]; then
+      # If the file exists (downloaded), return success (0)
+      if [[ -f "$JQ_PATH" ]]; then
+        return 0 
+      else
+        return 1 # Not found yet
+      fi
+    fi
+    return 0 # return 0 for curl or other commands
+  }
+  
+  # Mock uname
+  uname() { echo "Linux"; }
+  
+  # Mock curl to create the file
+  curl() {
+    if [[ "$*" == *"/jq-linux32"* ]]; then
+      echo "Downloaded Linux version" > "$JQ_PATH"
+      chmod +x "$JQ_PATH"
+    fi
+  }
+  
+  # Run function
+  InstallJq
+  local status=$?
+  
+  # Check content
+  local content
+  if [[ -f "$JQ_PATH" ]]; then
+      content=$(cat "$JQ_PATH")
+  fi
+  
+  rm -f "$JQ_PATH"
+  unset -f command uname curl
+  
+  assertEquals 0 $status
+  assertContains "$content" "Downloaded Linux version"
+}
+
+test_InstallJq_download_darwin() {
+  export JQ_PATH="./jq_mock_mac"
+
+  # Mock 'command' to be state-aware
+  command() {
+    local cmd_name="$1"
+
+    if [[ "$cmd_name" == "jq" ]]; then
+      # If the file exists (downloaded), return success (0)
+      if [[ -f "$JQ_PATH" ]]; then
+        return 0 
+      else
+        return 1 # Not found yet
+      fi
+    fi
+    return 0
+  }
+  
+  # Mock uname
+  uname() { echo "Darwin Kernel Version"; }
+  
+  # Mock curl
+  curl() {
+    if [[ "$*" == *"/jq-osx-amd64"* ]]; then
+      echo "Downloaded OSX version" > "$JQ_PATH"
+      chmod +x "$JQ_PATH"
+    fi
+  }
+  
+  InstallJq
+  local status=$?
+  
+  local content
+  if [[ -f "$JQ_PATH" ]]; then
+      content=$(cat "$JQ_PATH")
+  fi
+
+  rm -f "$JQ_PATH"
+  unset -f command uname curl
+  
+  assertEquals 0 $status
+  assertContains "$content" "Downloaded OSX version"
+}
+
+test_InstallJq_missing_curl_fail() {
+  # Mock curl being missing
+  command() {
+    if [[ "$2" == "curl" ]]; then return 1; fi
+    if [[ "$2" == "jq" ]]; then return 1; fi
+  }
+  
+  output=$(InstallJq 2>&1)
+  status=$?
+  
+  unset -f command
+  
+  assertEquals 1 $status
+  assertContains "$output" "CONJUR ORB ERROR: CURL is required"
+}
 
 # Mock the network_client
 mock_network_client_success() {
@@ -159,18 +311,20 @@ test_multiple_secrets_fetch_empty_result() {
 test_single_secret_fetch_success() {
   declare -A secretMulti
   secretMulti=( ["good-secret"]=MY_SECRET )
+  echo "secretMulti: ${secretMulti[*]}"
 
   network_client() {
     result="my-secret-value"
   }
   output=$(single_secret_fetch 2>&1)
 
-  assertContains "$output" "As the job will be marked as unsuccessful"
+  assertContains "${output}" "As the job will be marked as unsuccessful"
 }
 
 test_single_secret_fetch_empty_secret() {
   declare -A secretMulti
   secretMulti=( ["missing-secret"]=MY_SECRET )
+  echo "secretMulti: ${secretMulti[*]}"
 
   network_client() {
     result="Variable missing-secret is empty or not found"
@@ -184,6 +338,7 @@ test_single_secret_fetch_empty_secret() {
 test_single_secret_fetch_malformed_token() {
   declare -A secretMulti
   secretMulti=( ["bad-token"]=MY_SECRET )
+  echo "secretMulti: ${secretMulti[*]}"
 
   network_client() {
     result="Malformed authorization token"
@@ -273,8 +428,8 @@ test_set_environment_var_param_integr_true() {
   
   output=$(set_environment_var 2>&1)
   
-  assertContains "$output" "Secret fetched successfully. fetched :: value1"
-  assertContains "$output" "Secret fetched successfully. fetched :: value2"
+  assertContains "${output}" "Secret fetched successfully. fetched :: value1"
+  assertContains "${output}" "Secret fetched successfully. fetched :: value2"
 }
 
 test_set_environment_var_empty_secrets() {
@@ -284,7 +439,7 @@ test_set_environment_var_empty_secrets() {
 
   output=$(set_environment_var 2>&1)
   
-  assertContains "$output" ""
+  assertContains "${output}" ""
 }
 
 test_set_environment_var_multiple_secrets() {
@@ -299,7 +454,8 @@ test_set_environment_var_multiple_secrets() {
 
   output=$(set_environment_var 2>&1)
 
-  assertContains "$output" "Secret fetched successfully.  Environment variable MY_SECRET=MY_SECRET set."
+  echo "secretMulti: ${secretMulti[*]}"
+  assertContains "${output}" "Secret fetched successfully.  Environment variable MY_SECRET=MY_SECRET set."
 }
 
 # Test the `fetch_secret` function
@@ -345,9 +501,10 @@ test_fetch_secret_no_secrets() {
   set_environment_var() { echo "Environment variables set"; }
 
   output=$(fetch_secret 2>&1)
+
   
-  assertContains "$output" "Batch retrieval of secrets succeeded."
-  assertContains "$output" "Environment variables set"
+  assertContains "${output}" "Batch retrieval of secrets succeeded."
+  assertContains "${output}" "Environment variables set"
 }
 
 test_main_empty_oidc_token() {
@@ -376,5 +533,40 @@ test_multiple_secrets_fetch_empty_or_not_found() {
   assertContains "$output" "single_secret_fetch called"
 }
 
-# Load shUnit2
+test_default_version_no_changelog() {
+  output="$(get_telemetry_header 2>&1)"
+
+  assertRegex "${output}" '^[A-Za-z0-9_-]+$' "Output must be URL-safe base64"
+  assertNotContains "${output}" "=" "Output must not contain padding"
+  [[ -n "${output}" ]] || fail "Output must not be empty"
+}
+
+test_extracts_version_from_changelog() {
+
+  output="$(get_telemetry_header 2>&1)"
+
+  decoded="$(echo "${encoded}" | base64 --decode 2>/dev/null)"
+  assertContains "${decoded}" "iv=0.0.3" "Version mismatch"
+  assertContains "${decoded}" "in=CircleCI"
+}
+
+test_takes_first_version_only() {
+  output="$(get_telemetry_header 2>&1)"
+
+  decoded="$(echo "${encoded}" | base64 --decode)"
+  assertContains "${decoded}" "iv=0.0.3"
+  assertNotContains "${decoded}" "iv=0.0.2"
+}
+
+test_decoded_fields_structure() {
+  output="$(get_telemetry_header 2>&1)"
+
+  decoded="$(echo "${encoded}" | base64 --decode)"
+  assertContains "${decoded}" "in=CircleCI"
+  assertContains "${decoded}" "it=CI/CD"
+  assertContains "${decoded}" "iv=0.0.0-default"
+  assertContains "${decoded}" "vn=CircleCI"
+}
+
+# Load 
 . /usr/bin/shunit2
