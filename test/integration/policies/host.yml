@@ -7,6 +7,13 @@
     - !variable
       id: secondSecret
 
+    - !variable
+      id: emptySecret
+
+    #Intentionally the host is not permitted to use this variable so that we can test access denial case.
+    - !variable
+      id: secretWithoutHostPermit 
+
     - !host
       id: 72974ed5-1055-4b5f-86fd-cddd77e44c01
       annotations:
@@ -23,3 +30,8 @@
       role: !host 72974ed5-1055-4b5f-86fd-cddd77e44c01
       privileges: [ read, execute ]
       resource: !variable secondSecret
+
+    - !permit
+      role: !host 72974ed5-1055-4b5f-86fd-cddd77e44c01
+      privileges: [ read, execute ]
+      resource: !variable emptySecret

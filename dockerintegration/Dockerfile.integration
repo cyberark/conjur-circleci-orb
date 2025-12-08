@@ -8,11 +8,12 @@ RUN apt-get update -y && apt-get install -y \
     libreadline-dev \
     zlib1g-dev \
     curl \
-    shunit2 \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
 RUN gem install simplecov simplecov-cobertura
+RUN curl -o /usr/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2 && \
+    chmod +x /usr/bin/shunit2
 
 WORKDIR /conjur-circleci-orb
 

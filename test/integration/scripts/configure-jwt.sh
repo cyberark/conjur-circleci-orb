@@ -21,6 +21,7 @@ function set_jwt_variables() {
 	conjur variable set -i conjur/authn-jwt/circleci/identity-path -v "$IDENTITY_PATH"
 	conjur variable set -i circleci/firstSecret -v 'HelloFromFirstSecret'
 	conjur variable set -i circleci/secondSecret -v 'HelloFromSecondSecret'
+	conjur variable set -i circleci/secretWithoutHostPermit -v 'NotPermittedSecretValue'
 }
 
 main() {

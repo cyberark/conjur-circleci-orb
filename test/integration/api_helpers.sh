@@ -1,9 +1,10 @@
 #!/bin/bash
 
 CIRCLECI_TOKEN=""
-CIRCLECI_API_BASE="https://circleci.com/api/v2"
+CIRCLECI_API_BASE_V2="https://circleci.com/api/v2"
+CIRCLECI_API_BASE_V1="https://circleci.com/api/v1.1"
 CIRCLECI_PROJECT_SLUG="circleci/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6/72974ed5-1055-4b5f-86fd-cddd77e44c01"
-CIRCLECI_PIPELINE_DEFINITIONS_URL="$CIRCLECI_API_BASE/projects/72974ed5-1055-4b5f-86fd-cddd77e44c01/pipeline-definitions/"
+CIRCLECI_PIPELINE_DEFINITIONS_URL="$CIRCLECI_API_BASE_V2/projects/72974ed5-1055-4b5f-86fd-cddd77e44c01/pipeline-definitions/"
 
 GITHUB_TOKEN=""
 GITHUB_OWNER="Itso-Dimitrov-CyberArk"
@@ -15,19 +16,18 @@ GITHUB_API_BASE="https://api.github.com"
 # === GitHub API: Upload config.yml ===
 # Uploads a local config.yml to the GitHub repo as .circleci/config.yml
 function upload_github_config() {
-	echo "[SETUP] Uploading GitHub config.yml"
-
+	local COMMIT_MESSAGE="${1:-Update CircleCI config.yml for Conjur integration tests}"
 	local FILE_PATH_IN_REPO=".circleci/config.yml"
-	local COMMIT_MESSAGE="Add demo upload test file"
 	local CONTENT
 	local ENCODED_CONTENT
 	local SHA
 	local JSON_BODY
 	local HTTP_STATUS
 
+	echo "[SETUP] Uploading GitHub config.yml"
+
 	CONTENT=$(cat test/integration/ci/config.yml)
 	ENCODED_CONTENT=$(echo -n "$CONTENT" | base64 -w 0)
-
 	SHA=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
 		-H "User-Agent: $GITHUB_USER_AGENT" \
 		"$GITHUB_API_BASE/repos/$GITHUB_OWNER/$GITHUB_REPO/contents/$FILE_PATH_IN_REPO" | jq -r '.sha')
@@ -73,7 +73,7 @@ function trigger_circleci_pipeline() {
 
 	# Request Body/Data could be in a separate JSON file
 	local response
-	response=$(curl -X POST "$CIRCLECI_API_BASE/project/$CIRCLECI_PROJECT_SLUG/pipeline/run" \
+	response=$(curl -X POST "$CIRCLECI_API_BASE_V2/project/$CIRCLECI_PROJECT_SLUG/pipeline/run" \
 		-H "Circle-Token: $CIRCLECI_TOKEN" \
 		-H "Content-Type: application/json" \
 		--data '{"definition_id":"'"${definition_id}"'","config":{"branch":"'"${config_branch}"'"},"checkout":{"branch":"'"${checkout_branch}"'"}}')
@@ -84,7 +84,7 @@ function trigger_circleci_pipeline() {
 function get_workflow_id_from_pipeline() {
 	local pipeline_id="$1"
 	local response
-	response=$(curl -s -L "$CIRCLECI_API_BASE/pipeline/${pipeline_id}/workflow" \
+	response=$(curl -s -L "$CIRCLECI_API_BASE_V2/pipeline/${pipeline_id}/workflow" \
 		-H "Circle-Token: $CIRCLECI_TOKEN")
 	echo "$response" | jq -r '.items[0].id'
 }
@@ -93,7 +93,7 @@ function get_workflow_id_from_pipeline() {
 function get_job_number_from_workflow() {
 	local workflow_id="$1"
 	local response
-	response=$(curl -s -L "$CIRCLECI_API_BASE/workflow/${workflow_id}/job" \
+	response=$(curl -s -L "$CIRCLECI_API_BASE_V2/workflow/${workflow_id}/job" \
 		-H "Circle-Token: $CIRCLECI_TOKEN")
 	echo "$response" | jq -r '.items[0].job_number'
 }
@@ -104,35 +104,37 @@ function get_artifact_from_job() {
 	local artifact_path="$2"
 
 	local response
-	response=$(curl -s -L "$CIRCLECI_API_BASE/project/$CIRCLECI_PROJECT_SLUG/${job_number}/artifacts" \
+	response=$(curl -s -L "$CIRCLECI_API_BASE_V2/project/$CIRCLECI_PROJECT_SLUG/${job_number}/artifacts" \
 		-H "Circle-Token: $CIRCLECI_TOKEN")
 	echo "$response" | jq -r --arg path "$artifact_path" '.items[] | select(.path==$path) | .url'
 }
 
 # Waits for a CircleCI workflow to complete, polling for status
-function wait_for_workflow_complete() {
+function wait_for_workflow() {
 	local workflow_id="$1"
 	local max_attempts="$2"
 	local interval="$3"
+	local expected_status="$4"
+	
 	local attempt=1
-	local status=""
+	local current_status
 	local response
 
-	echo "Waiting for CircleCI workflow to complete, Workflow ID: $workflow_id, Max Attempts: $max_attempts, Interval: ${interval}s"
+	echo "Waiting for CircleCI workflow to reach status '$expected_status', Workflow ID: $workflow_id, Max Attempts: $max_attempts, Interval: ${interval}s"
 
 	while ((attempt <= max_attempts)); do
 		echo "Attempt $attempt of $max_attempts"
-		response=$(curl -s "$CIRCLECI_API_BASE/workflow/$workflow_id" \
+		response=$(curl -s "$CIRCLECI_API_BASE_V2/workflow/$workflow_id" \
 			-H "Circle-Token: $CIRCLECI_TOKEN")
 
-		status=$(echo "$response" | jq -r '.status')
-		echo "   Current status: $status"
+		current_status=$(echo "$response" | jq -r '.status')
+		echo "Current status: $current_status"
 
-		if [[ "$status" == "success" ]]; then
-			echo "Workflow succeeded."
+		if [[ "$current_status" == "$expected_status" ]]; then
+			echo "Workflow reached expected status: $expected_status"
 			return 0
-		elif [[ "$status" == "failed" ]]; then
-			echo "Workflow failed."
+		elif [[ "$current_status" == "failed" && "$expected_status" != "failed" ]]; then
+			echo "Workflow failed unexpectedly."
 			return 1
 		fi
 
@@ -140,13 +142,28 @@ function wait_for_workflow_complete() {
 		sleep "$interval"
 	done
 
-	echo "Maximum attempts reached without completion."
+	echo "Maximum attempts reached without reaching expected status '$expected_status'."
 	return 124
 }
 
-# Downloads and returns the content of an artifact from its URL
 function get_artifact_content_from_job() {
 	local artifact_url="$1"
 
 	curl -L -s -H "Circle-Token: $CIRCLECI_TOKEN" "$artifact_url"
+}
+
+function get_step_output_by_name() {
+	local job_number="$1"
+	local step_name="$2"
+	
+	local response
+	response=$(curl -s "$CIRCLECI_API_BASE_V1/project/${CIRCLECI_PROJECT_SLUG}/${job_number}" \
+	         -H "Circle-Token: $CIRCLECI_TOKEN")
+	
+	local step_output_url
+	step_output_url=$(echo "$response" | jq -r --arg name "$step_name" '.steps[] | select(.name == $name) | .actions[0].output_url // empty')
+	
+	if [[ -n "$step_output_url" ]]; then
+		curl -s -L "$step_output_url"
+	fi
 }
