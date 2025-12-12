@@ -1,6 +1,25 @@
 #!/bin/bash
 
-ORB_NAME="${1:-conjur-circleci-orb}"  # can also be set as a custom name
+MODE="${1}" # public or private
+ORB_NAME="${2:-conjur-circleci-orb}"  # can also be set as a custom name
+
+function setModeConfig() {
+    case "$MODE" in
+        "private")
+            NAMESPACE="$CIRCLECI_NAMESPACE_PRIVATE"
+            FLAG="--private"
+            ;;
+        "public")
+            NAMESPACE="$CIRCLECI_NAMESPACE" 
+            FLAG=""
+            ;;
+        *)
+            echo "Error: Invalid mode '$MODE'"
+            echo "Valid modes: private, public"
+            exit 1
+            ;;
+    esac
+}
 
 function checkEnvVars() {
     if [[ -z "$1" ]]; then
@@ -10,12 +29,12 @@ function checkEnvVars() {
 }
 
 function verifyNamespaceExistence() {
-    circleci orb list "$CIRCLECI_NAMESPACE" &>/dev/null
-    [[ $? -ne 0 ]] && { echo "No namespace was found in the CircleCI Orbs repository" ; exit 1 ; }
+    circleci orb list "$NAMESPACE" $FLAG 
+    [[ $? -ne 0 ]] && { echo "No namespace '$NAMESPACE' was found in the CircleCI Orbs repository" ; exit 1 ; }
 }
 
 function verifyOrbExistence() {
-    circleci orb list "$CIRCLECI_NAMESPACE" | grep "$ORB_NAME" &>/dev/null
+    circleci orb list "$NAMESPACE" $FLAG | grep "$ORB_NAME" 
     case $? in
         0) ;;
         *)
@@ -34,12 +53,12 @@ function setupCircleCI() {
 }
 
 function createOrb() {
-    circleci orb create "$CIRCLECI_NAMESPACE"/"$ORB_NAME" --no-prompt &>/dev/null
+    circleci orb create "$NAMESPACE"/"$ORB_NAME"  --no-prompt "$FLAG"
     [[ $? -ne 0 ]] && { echo "Failed to create the CircleCI Orb" ; exit 1 ; }
 }
 
 function orbPack() {
-    [[ -z "$(find src -mindepth 1 -maxdepth 1)" ]] && { echo "The conjur-circleci-orb source code doesnot exist" ; exit 1 ; }
+    [[ -z "$(find src -mindepth 1 -maxdepth 1)" ]] && { echo "The conjur-circleci-orb source code does not exist" ; exit 1 ; }
     circleci orb pack ./src > ./orb.yml
     [[ ! -s "./orb.yml" ]] && { echo "Failed to create the CircleCI Orb" ; exit 1 ; }
 }
@@ -56,6 +75,15 @@ function main() {
     checkEnvVars "$CIRCLECI_API_KEY"
     checkEnvVars "$CIRCLECI_ORG_ID"
     checkEnvVars "$CIRCLECI_NAMESPACE"
+    checkEnvVars "$CIRCLECI_NAMESPACE_PRIVATE"
+    setModeConfig
+    
+    # Setup CircleCI CLI first for private mode so we can access private orbs in account
+    if [[ "$MODE" == "private" ]]; then
+        echo "Setting up CircleCI CLI for private orb access"
+        setupCircleCI
+    fi
+    
     #Verify the namespace existence
     verifyNamespaceExistence
     #Validate and create the orb

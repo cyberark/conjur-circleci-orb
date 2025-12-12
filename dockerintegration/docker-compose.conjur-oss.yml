@@ -27,7 +27,7 @@ services:
     container_name: postgres_database
     environment:
       POSTGRES_HOST_AUTH_METHOD: password
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SEcret12Password}
     ports:
       - "8432:5432"
     networks:
@@ -38,8 +38,8 @@ services:
     container_name: conjur-leader-1.mycompany.local
     command: server
     environment:
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@database/postgres
-      CONJUR_DATA_KEY: ${CONJUR_DATA_KEY}
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-SEcret12Password}@database/postgres
+      CONJUR_DATA_KEY: ${CONJUR_DATA_KEY:-iFra75qdvsLENSV+qXYFMkv7KJS3t+82Po4mmjZLxZc=}
       CONJUR_AUTHENTICATORS: ${CONJUR_AUTHENTICATOR:-authn-jwt/circleci}
       CONJUR_TELEMETRY_ENABLED: 'false'
       CONJUR_API_RESOURCE_LIST_LIMIT_MAX: 5000

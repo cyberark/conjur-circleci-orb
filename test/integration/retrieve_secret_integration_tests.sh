@@ -6,19 +6,31 @@ DEFINITION_ID=""
 PIPELINE_ID=""
 WORKFLOW_ID=""
 JOB_ID=""
+CONJUR_CERTIFICATE_VALID_B64=""
+CONJUR_CERTIFICATE_INVALID_B64=""
+TEST_ORB=""
+
+function oneTimeSetUp() {
+	# Read published orb version if available
+	if [[ -f "orbversion/.published_orb_version" ]]; then
+		TEST_ORB=$(cat "orbversion/.published_orb_version")
+		echo "Testing with published orb: $TEST_ORB"
+	else
+		echo "No published orb version found, using default"
+	fi
+	CONJUR_CERTIFICATE_VALID_B64=$(base64 < ./conjur.pem | tr -d '\n')
+	CONJUR_CERTIFICATE_INVALID_B64=$(base64 < ./invalid_cert.pem | tr -d '\n')
+	add_or_update_environment_variable "CONJUR_CERTIFICATE_B64" "$CONJUR_CERTIFICATE_VALID_B64"
+}
 
 function test_single_secret_retrieval_should_succeed() {
 	local expected_secret_value
     expected_secret_value="HelloFromFirstSecret"
 
-	set_secrets_in_circleci_yaml_config "circleci/firstSecret|FIRST_SECRET"
-	upload_github_config "test_single_secret_retrieval_should_succeed"
-
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/firstSecret|FIRST_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
-
-	wait_for_workflow "$WORKFLOW_ID" 5 10 "success"
+	wait_for_workflow "$WORKFLOW_ID" 6 10 "success"
 
 	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
 	
@@ -43,14 +55,12 @@ HelloFromFirstSecret
 HelloFromSecondSecret
 EOF
 	)
-	set_secrets_in_circleci_yaml_config "circleci/firstSecret|FIRST_SECRET;circleci/secondSecret|SECOND_SECRET"
-	upload_github_config "test_multiple_secrets_retrieval_should_succeed"
 
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/firstSecret|FIRST_SECRET;circleci/secondSecret|SECOND_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 
-	wait_for_workflow "$WORKFLOW_ID" 5 10 "success"
+	wait_for_workflow "$WORKFLOW_ID" 6 10 "success"
 
 	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
 
@@ -69,14 +79,11 @@ EOF
 }
 
 function test_non_existing_secrets_retrieval_should_fail() {
-	set_secrets_in_circleci_yaml_config "circleci/nonExistingSecret|NON_EXISTING_SECRET"
-	upload_github_config "test_non_existing_secrets_retrieval_should_fail"
-
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/nonExistingSecret|NON_EXISTING_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 
-	wait_for_workflow "$WORKFLOW_ID" 5 10 "failed"
+	wait_for_workflow "$WORKFLOW_ID" 6 10 "failed"
 
 	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
 
@@ -91,14 +98,13 @@ function test_non_existing_secrets_retrieval_should_fail() {
 }
 
 function test_providing_wrong_certificate_should_fail() {	
-	set_conjur_certificate_in_circleci_yaml "./invalid_cert.pem"
-	upload_github_config "test_providing_wrong_certificate_should_fail"
+	add_or_update_environment_variable "CONJUR_CERTIFICATE_B64" "$CONJUR_CERTIFICATE_INVALID_B64"
 
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/firstSecret|FIRST_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 
-	wait_for_workflow "$WORKFLOW_ID" 5 10 "failed"
+	wait_for_workflow "$WORKFLOW_ID" 6 10 "failed"
 	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
 
 	local output
@@ -110,15 +116,13 @@ function test_providing_wrong_certificate_should_fail() {
 }
 
 function test_existing_empty_secret_retrieval_should_fail() {
-	set_secrets_in_circleci_yaml_config "circleci/emptySecret|FIRST_SECRET"
-	set_conjur_certificate_in_circleci_yaml
-	upload_github_config "test_existing_empty_secret_retrieval_should_fail"
+	add_or_update_environment_variable "CONJUR_CERTIFICATE_B64" "$CONJUR_CERTIFICATE_VALID_B64"
 
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/emptySecret|FIRST_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 
-	wait_for_workflow "$WORKFLOW_ID" 5 10 "failed"
+	wait_for_workflow "$WORKFLOW_ID" 6 10 "failed"
 
 	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
 	
@@ -135,15 +139,11 @@ function test_existing_empty_secret_retrieval_should_fail() {
 # There is a bug currently and the host access denial is not working as expected.
 # Once fixed this test should be enabled: https://ca-il-jira.il.cyber-ark.com:8443/browse/CNJR-12020
 # function test_host_access_to_variable_should_be_denied() {
-# 	set_secrets_in_circleci_yaml_config "circleci/secretWithoutHostPermit|FIRST_SECRET"
-# 	set_conjur_certificate_in_circleci_yaml
-# 	upload_github_config "test_host_access_to_variable_should_be_denied"
-
 # 	DEFINITION_ID=$(get_first_definition_id)
-# 	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "main" "main")
+# 	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup")
 # 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 
-# 	wait_for_workflow "$WORKFLOW_ID" 5 10 "failed"
+# 	wait_for_workflow "$WORKFLOW_ID" 6 10 "failed"
 
 # 	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
 	

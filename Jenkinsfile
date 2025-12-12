@@ -18,7 +18,9 @@ if (params.MODE == "PROMOTE") {
     // Anything added to assetDirectory will be attached to the Github Release
 
     //Note: assetDirectory is on the infrapool agent, not the local Jenkins agent.
-    infrapool.agentSh "summon ./bin/promote.sh ${assetDirectory} ${targetVersion}"
+    // Build public orb for promotion
+    infrapool.agentSh "summon ./bin/build.sh public"
+    infrapool.agentSh "summon ./bin/promote.sh ${assetDirectory} ${targetVersion} public"
   }
   release.copyEnterpriseRelease(params.VERSION_TO_PROMOTE)
   return
@@ -37,12 +39,12 @@ pipeline {
   }
 
   environment {
-    // Sets the MODE to the specified or autocalculated value as appropriate
+    // Sets the MODE to the specified or auto calculated value as appropriate
     MODE = release.canonicalizeMode()
   }
 
   stages {
-    // Aborts any builds triggered by another project that wouldn't include any changes
+    // Aborts any builds triggered by another project that would not include any changes
     stage ("Skip build if triggering job didn't create a release") {
       when {
         expression {
@@ -94,7 +96,30 @@ pipeline {
     stage('Build artifacts') {
       steps {
         script {
-          infrapool.agentSh 'summon ./bin/build.sh'
+          infrapool.agentSh 'summon ./bin/build.sh private'
+        }
+      }
+    }
+    stage('Publish Private Orb') {
+      steps {
+        script {
+          infrapool.agentSh "summon ./bin/promote.sh dist ${BUILD_NUMBER} private"
+        }
+      }
+    }
+    stage('Integration Tests & Coverage OSS') {
+      steps {
+        script {
+          infrapool.agentSh 'summon ./bin/integration_test_coverage.sh oss'
+          infrapool.agentStash name: 'junit-xml', includes: 'output-integration/*.xml'
+        }
+      }
+    }
+    stage('Integration Tests & Coverage Enterprise') {
+      steps {
+        script {
+          infrapool.agentSh 'summon ./bin/integration_test_coverage.sh enterprise'
+          infrapool.agentStash name: 'junit-xml', includes: 'output-integration/*.xml'
         }
       }
     }

@@ -1,60 +1,11 @@
 #!/bin/bash
 
-CIRCLECI_TOKEN=""
+CIRCLECI_TOKEN="$API_KEY"
 CIRCLECI_API_BASE_V2="https://circleci.com/api/v2"
 CIRCLECI_API_BASE_V1="https://circleci.com/api/v1.1"
-CIRCLECI_PROJECT_SLUG="circleci/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6/72974ed5-1055-4b5f-86fd-cddd77e44c01"
-CIRCLECI_PIPELINE_DEFINITIONS_URL="$CIRCLECI_API_BASE_V2/projects/72974ed5-1055-4b5f-86fd-cddd77e44c01/pipeline-definitions/"
-
-GITHUB_TOKEN=""
-GITHUB_OWNER="Itso-Dimitrov-CyberArk"
-GITHUB_REPO="CircleCiPocDoc"
-GITHUB_BRANCH="main"
-GITHUB_USER_AGENT="MyApp-GitHubClient"
-GITHUB_API_BASE="https://api.github.com"
-
-# === GitHub API: Upload config.yml ===
-# Uploads a local config.yml to the GitHub repo as .circleci/config.yml
-function upload_github_config() {
-	local COMMIT_MESSAGE="${1:-Update CircleCI config.yml for Conjur integration tests}"
-	local FILE_PATH_IN_REPO=".circleci/config.yml"
-	local CONTENT
-	local ENCODED_CONTENT
-	local SHA
-	local JSON_BODY
-	local HTTP_STATUS
-
-	echo "[SETUP] Uploading GitHub config.yml"
-
-	CONTENT=$(cat test/integration/ci/config.yml)
-	ENCODED_CONTENT=$(echo -n "$CONTENT" | base64 -w 0)
-	SHA=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
-		-H "User-Agent: $GITHUB_USER_AGENT" \
-		"$GITHUB_API_BASE/repos/$GITHUB_OWNER/$GITHUB_REPO/contents/$FILE_PATH_IN_REPO" | jq -r '.sha')
-
-	JSON_BODY=$(
-		cat <<EOF
-{
-  "message": "$COMMIT_MESSAGE",
-  "content": "$ENCODED_CONTENT",
-  "branch": "$GITHUB_BRANCH",
-  "sha": "$SHA"
-}
-EOF
-	)
-
-	HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
-		-H "Authorization: Bearer $GITHUB_TOKEN" \
-		-H "User-Agent: $GITHUB_USER_AGENT" \
-		-H "Content-Type: application/json" \
-		--data "$JSON_BODY" \
-		"$GITHUB_API_BASE/repos/$GITHUB_OWNER/$GITHUB_REPO/contents/$FILE_PATH_IN_REPO")
-
-	if [[ "$HTTP_STATUS" -ne 200 ]]; then
-		echo "[ERROR] GitHub API upload failed with status: $HTTP_STATUS"
-		exit 1
-	fi
-}
+CIRCLECI_PROJECT_SLUG="circleci/c05f5799-3c32-45e3-98dd-cb4e90373966/$PROJECT_ID"
+CIRCLECI_PIPELINE_DEFINITIONS_URL="$CIRCLECI_API_BASE_V2/projects/$PROJECT_ID/pipeline-definitions/"
+CIRCLECI_CONTEXT_ID="$CONTEXT_ID"  # CircleCI Context ID for storing environment variables
 
 # === CircleCI API Functions ===
 # Gets the first pipeline definition ID from CircleCI project
@@ -70,23 +21,86 @@ function trigger_circleci_pipeline() {
 	local definition_id="$1"
 	local config_branch="$2"
 	local checkout_branch="$3"
+	local conjur_secrets="$4"
+	local conjur_url="$5"
+	local conjur_orb="${6:-cyberark/conjur-circleci-orb@0.0.2}"
 
-	# Request Body/Data could be in a separate JSON file
+	# Build JSON payload for pipeline trigger
+	local json_data
+	json_data=$(cat <<EOF
+{
+	"definition_id": "${definition_id}",
+	"config": {
+		"branch": "${config_branch}"
+	},
+	"checkout": {
+		"branch": "${checkout_branch}"
+	},
+	"parameters": {
+		"conjur_secrets": "${conjur_secrets}",
+		"conjur_url": "${conjur_url}",
+		"conjur_orb": "${conjur_orb}"
+	}
+}
+EOF
+	)
+
 	local response
 	response=$(curl -X POST "$CIRCLECI_API_BASE_V2/project/$CIRCLECI_PROJECT_SLUG/pipeline/run" \
 		-H "Circle-Token: $CIRCLECI_TOKEN" \
 		-H "Content-Type: application/json" \
-		--data '{"definition_id":"'"${definition_id}"'","config":{"branch":"'"${config_branch}"'"},"checkout":{"branch":"'"${checkout_branch}"'"}}')
+		--data "$json_data")
 	echo "$response" | jq -r '.id'
 }
 
 # Gets the workflow ID from a given pipeline ID
 function get_workflow_id_from_pipeline() {
 	local pipeline_id="$1"
+	local max_attempts=3
+	local interval=3
+	
+	local attempt=1
+	local workflow_id
 	local response
-	response=$(curl -s -L "$CIRCLECI_API_BASE_V2/pipeline/${pipeline_id}/workflow" \
-		-H "Circle-Token: $CIRCLECI_TOKEN")
-	echo "$response" | jq -r '.items[0].id'
+
+	echo "Getting workflow ID for pipeline: $pipeline_id, Max Attempts: $max_attempts, Interval: ${interval}s" >&2
+
+	while ((attempt <= max_attempts)); do
+		echo "Attempt $attempt of $max_attempts" >&2
+		response=$(curl -s -L "$CIRCLECI_API_BASE_V2/pipeline/${pipeline_id}/workflow" \
+			-H "Circle-Token: $CIRCLECI_TOKEN")
+
+		workflow_id=$(echo "$response" | jq -r '.items[0].id')
+		echo "Workflow ID: $workflow_id" >&2
+
+		if [[ "$workflow_id" != "null" && -n "$workflow_id" ]]; then
+			echo "Workflow found: $workflow_id" >&2
+			echo "$workflow_id"
+			return 0
+		fi
+
+		((attempt++))
+		sleep "$interval"
+	done
+
+	echo "Maximum attempts reached without finding workflow ID." >&2
+	return 124
+}
+
+function add_or_update_environment_variable() {
+	local variable_name="$1"
+	local variable_value="$2"
+	
+	local json_payload
+	json_payload=$(jq -n --arg value "$variable_value" '{"value": $value}')
+	
+	local response
+	response=$(curl -s --request PUT \
+		--url "https://circleci.com/api/v2/context/${CIRCLECI_CONTEXT_ID}/environment-variable/${variable_name}" \
+		--header "Circle-Token: $CIRCLECI_TOKEN" \
+		--header "Content-Type: application/json" \
+		--data "$json_payload")
+	echo "$response"
 }
 
 # Gets the job number from a given workflow ID
@@ -126,7 +140,7 @@ function wait_for_workflow() {
 		echo "Attempt $attempt of $max_attempts"
 		response=$(curl -s "$CIRCLECI_API_BASE_V2/workflow/$workflow_id" \
 			-H "Circle-Token: $CIRCLECI_TOKEN")
-
+			
 		current_status=$(echo "$response" | jq -r '.status')
 		echo "Current status: $current_status"
 

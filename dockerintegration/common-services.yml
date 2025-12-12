@@ -12,10 +12,10 @@ services:
       - CONJUR_URL=https://conjur-leader-1.mycompany.local
       - CONJUR_OSS_URL=https://proxy
       - CONJUR_ACCOUNT=conjur
-      - CONJUR_ADMIN_PASSWORD=${CONJUR_ADMIN_PASSWORD}
-      - JWKS_URI=https://oidc.circleci.com/org/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6/.well-known/jwks-pub.json
-      - ISSUER=https://oidc.circleci.com/org/1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6
-      - AUDIENCE=1c7e7303-b9fc-427b-9dcc-e9976ec6e1c6
+      - CONJUR_ADMIN_PASSWORD=${CONJUR_ADMIN_PASSWORD:-SecretP@ssw0rd!}
+      - JWKS_URI=https://oidc.circleci.com/org/c05f5799-3c32-45e3-98dd-cb4e90373966/.well-known/jwks-pub.json
+      - ISSUER=https://oidc.circleci.com/org/c05f5799-3c32-45e3-98dd-cb4e90373966
+      - AUDIENCE=c05f5799-3c32-45e3-98dd-cb4e90373966
       - TOKEN_APP_PROPERTY=oidc.circleci.com/project-id
       - IDENTITY_PATH=circleci
     volumes:
@@ -35,6 +35,6 @@ services:
       - conjur-leader
       - conjur-cli
     environment:
-      - CIRCLECI_RUNNER_NAME=my-macos-runner2
-      - CIRCLECI_RUNNER_API_AUTH_TOKEN=${CIRCLECI_RUNNER_API_TOKEN}
-      - CIRCLECI_RESOURCE_CLASS=namespace-poc-doc/poc-doc-resource3
+      - CIRCLECI_RUNNER_NAME=integration-tests-runner
+      - CIRCLECI_RUNNER_API_AUTH_TOKEN=${RUNNER_API_KEY}
+      - CIRCLECI_RESOURCE_CLASS=cyberark-integration-testing/self-hosted-runner
