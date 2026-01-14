@@ -164,7 +164,6 @@ function authenticate() {
 		exit 1
 	else
 		echo "Authentication Successful."
-		echo "New changes to the orb"
 	fi
 }
 
