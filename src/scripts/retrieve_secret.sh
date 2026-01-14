@@ -164,6 +164,7 @@ function authenticate() {
 		exit 1
 	else
 		echo "Authentication Successful."
+		echo "Test Demo"
 	fi
 }
 
