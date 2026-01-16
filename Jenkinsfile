@@ -100,13 +100,13 @@ pipeline {
         }
       }
     }
-    stage('Publish Private Orb') {
-      steps {
-        script {
-          infrapool.agentSh "summon ./bin/promote.sh dist ${BUILD_NUMBER} private"
-        }
-      }
-    }
+    // stage('Publish Private Orb') {
+    //   steps {
+    //     script {
+    //       infrapool.agentSh "summon ./bin/promote.sh dist ${BUILD_NUMBER} private"
+    //     }
+    //   }
+    // }
     stage('Integration Tests & Coverage OSS') {
       steps {
         script {
