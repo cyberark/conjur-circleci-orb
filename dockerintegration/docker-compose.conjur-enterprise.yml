@@ -20,7 +20,7 @@ services:
       - CONJUR_LOG_LEVEL=debug
       - CONJUR_HOSTNAME=conjur-leader-1.mycompany.local
       - CONJUR_ACCOUNT=conjur
-      - CONJUR_ADMIN_PASSWORD=${CONJUR_ADMIN_PASSWORD}
+      - CONJUR_ADMIN_PASSWORD=${CONJUR_ADMIN_PASSWORD:-SecretP@ssw0rd!}
       - CONJUR_AUTHENTICATORS=${CONJUR_AUTHENTICATOR:-authn-jwt/circleci}
     volumes:
       - ../test/integration/scripts/configure-conjur.sh:/scripts/configure-conjur.sh:ro

@@ -1,7 +1,28 @@
 #!/usr/bin/env bash
 set -eu
 
-ORB_NAME="${1:-conjur-circleci-orb}"  # can also be set as a custom name
+MODE="${1:-private}" # public or private
+ORB_NAME="${2:-conjur-circleci-orb}"  # can also be set as a custom name
+
+function setModeConfig() {
+    case "$MODE" in
+        "private")
+            NAMESPACE="$CIRCLECI_NAMESPACE_PRIVATE"
+            VERSION_PREFIX="dev:"
+            FLAG="--private"
+            ;;
+        "public")
+            NAMESPACE="$CIRCLECI_NAMESPACE" 
+            VERSION_PREFIX=""
+            FLAG=""
+            ;;
+        *)
+            echo "Error: Invalid mode '$MODE'"
+            echo "Valid modes: private, public"
+            exit 1
+            ;;
+    esac
+}
 
 function checkEnvVars() {
   if [[ -z "$1" ]]; then
@@ -11,15 +32,15 @@ function checkEnvVars() {
 }
 
 function verifyNamespaceExistence() {
-  circleci orb list "$CIRCLECI_NAMESPACE"
+  circleci orb list "$NAMESPACE" $FLAG 
   if [[ $? -ne 0 ]]; then
-    echo "No namespace was found in the CircleCI Orbs repository"
+    echo "No namespace '$NAMESPACE' was found in the CircleCI Orbs repository"
     exit 1
   fi
 }
 
 function verifyOrbExistence() {
-  circleci orb list "$CIRCLECI_NAMESPACE" | grep "$ORB_NAME"
+  circleci orb list "$NAMESPACE" $FLAG | grep "$ORB_NAME"
   if [[ $? -ne 0 ]]; then
     echo "Unable to find orb"
     exit 1
@@ -35,10 +56,35 @@ function orbValidate() {
 }
 
 function publishOrb() {
-  circleci orb publish "${ASSET_DIRECTORY}/orb.yml" "${CIRCLECI_NAMESPACE}/${ORB_NAME}@${VERSION}"
+  echo "Publishing $MODE orb: ${NAMESPACE}/${ORB_NAME}@${VERSION_PREFIX}${VERSION}"
+  circleci orb publish "${ASSET_DIRECTORY}/orb.yml" "${NAMESPACE}/${ORB_NAME}@${VERSION_PREFIX}${VERSION}"
   if [[ $? -ne 0 ]]; then
     echo "Failed to publish orb, please check out error log"
     exit 1
+  fi
+}
+
+function promotingOrb() {
+  echo "Promoting $MODE orb: ${NAMESPACE}/${ORB_NAME}@${VERSION_PREFIX}${VERSION}"
+  
+  PROMOTE_OUTPUT=$(circleci orb publish promote "${NAMESPACE}/${ORB_NAME}@${VERSION_PREFIX}${VERSION}" patch 2>&1)
+  
+  if [[ $? -ne 0 ]]; then
+    echo "Failed to promote orb, please check out error log"
+    echo "$PROMOTE_OUTPUT"
+    exit 1
+  fi
+  
+  echo "$PROMOTE_OUTPUT"
+  
+  PROMOTED_ORB=$(echo "$PROMOTE_OUTPUT" | sed -n "s/.*was promoted to \`\\([^\`]*\\)\`.*/\\1/p")
+  
+  if [[ -n "$PROMOTED_ORB" ]]; then
+    echo "Successfully promoted to: $PROMOTED_ORB"
+    echo "Saving orb name to file orbversion/.published_orb_version"
+    echo "$PROMOTED_ORB" > ./orbversion/.published_orb_version
+  else
+    echo "Warning: Could not extract promoted orb name from output"
   fi
 }
 
@@ -54,9 +100,12 @@ function setupCircleCI() {
 }
 
 function main() {
+  # Set configuration based on mode first
+  setModeConfig  
   checkEnvVars "$CIRCLECI_API_KEY"
   checkEnvVars "$CIRCLECI_ORG_ID"
   checkEnvVars "$CIRCLECI_NAMESPACE"
+  checkEnvVars "$CIRCLECI_NAMESPACE_PRIVATE"
   checkEnvVars "$VERSION"
   checkEnvVars "$ASSET_DIRECTORY"
   setupCircleCI
@@ -68,6 +117,12 @@ function main() {
   orbValidate
   #Publish the orb
   publishOrb
+  
+  # Private orbs: promote dev version to numbered version (dev:3->0.0.1, dev:4->0.0.2)
+  if [[ "$MODE" == "private" ]]; then
+    echo "Promoting private dev version to numbered version..."
+    promotingOrb
+  fi
 }
 
 main

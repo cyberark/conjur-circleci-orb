@@ -1,38 +1,65 @@
 version: 2.1
 
+parameters:
+  conjur_account:
+    type: string
+    default: "conjur"
+  conjur_secrets:
+    type: string
+    default: "circleci/firstSecret|FIRST_SECRET"
+  conjur_service_id:
+    type: string
+    default: circleci
+  conjur_url:
+    type: string
+    default: "https://proxy"
+  conjur_orb:
+    type: string
+    default: "cyberark/conjur-circleci-orb@0.0.2"
+
 orbs:
-  conjur-circleci-orb: cyberark/conjur-circleci-orb@0.0.2
+  conjur-circleci-orb: << pipeline.parameters.conjur_orb >>
 
 jobs:
   retrieve-secrets:
     machine: true
-    resource_class: namespace-poc-doc/poc-doc-resource3
+    resource_class: cyberark-integration-testing/self-hosted-runner
     steps:
-      - conjur-circleci-orb/retrieve_secret:
-          account: "conjur"
-          secrets: "circleci/firstSecret|FIRST_SECRET;circleci/secondSecret|SECOND_SECRET"
-          service_id: "circleci"
-          url: "https://conjur-leader-1.mycompany.local"
-          certificate: |
-            -----BEGIN CERTIFICATE-----
-            
-            -----END CERTIFICATE-----
       - run:
-          name: Save retrieved secrets to file
+          name: Decode base64 certificate
+          command: |
+            # Official CircleCI approach for multi-line environment variables
+            CONJUR_CERTIFICATE=$(echo $CONJUR_CERTIFICATE_B64 | base64 -d)
+            # Export for use in subsequent steps
+            echo "export PARAM_CERTIFICATE='$CONJUR_CERTIFICATE'" >> $BASH_ENV
+            
+      - conjur-circleci-orb/retrieve_secret:
+          account: << pipeline.parameters.conjur_account >>
+          secrets: << pipeline.parameters.conjur_secrets >>
+          service_id: << pipeline.parameters.conjur_service_id >>
+          url: << pipeline.parameters.conjur_url >>
+          certificate: $PARAM_CERTIFICATE
+
+      - run:
+          name: Save retrieved secrets
           command: |
             echo "$FIRST_SECRET" >> conjur_single_secret_value.txt
             echo -e "$FIRST_SECRET\n$SECOND_SECRET" >> conjur_multiple_secrets_values.txt
+          when: always
+
       - store_artifacts:
           path: conjur_single_secret_value.txt
           destination: conjur_single_secret_artifact
           when: always
+
       - store_artifacts:
           path: conjur_multiple_secrets_values.txt
           destination: conjur_multiple_secrets_artifact
           when: always
+
 workflows:
   use-my-orb:
     jobs:
       - retrieve-secrets:
-          context: 
-            - CIRCLE_OIDC_TOKEN_V2
+          context:
+            - Automation

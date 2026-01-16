@@ -56,8 +56,7 @@ main() {
 	setup_environment
 	setup_conjur_cli
 	configure_jwt
-	set_conjur_url_in_circleci_yaml_config "$DEPLOYMENT_TYPE"
-	set_conjur_certificate_in_circleci_yaml 
+	retrieve_conjur_certificate "$DEPLOYMENT_TYPE"
 }
 main
 
