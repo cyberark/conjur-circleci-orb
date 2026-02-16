@@ -114,7 +114,7 @@ function network_client() {
 	"GET")
 		common_curl_options+=(
 			"${url}"
-			--header "Authorization: Token token=${token}"
+			--header "Authorization: Token token=\"${token}\""
 			--header "x-cybr-telemetry: ${telemetry_header}"
 		)
 		;;
@@ -123,7 +123,6 @@ function network_client() {
 		exit 1
 		;;
 	esac
-
 	response=$(curl "${common_curl_options[@]}")
 
 	if [[ $method == "POST" ]]; then
@@ -186,6 +185,7 @@ function single_secret_fetch() {
 			exit 1
 		elif [[ ${secretVal} == *"is empty or not found"* ]]; then
 			flag=true
+			err_msg+="${secretId}, "
 		else
 			echo "As the job will be marked as unsuccessful, the environment variable for secrets found is not set."
 		fi
