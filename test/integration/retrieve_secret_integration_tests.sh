@@ -1,6 +1,9 @@
 #!/bin/bash
 source "$(dirname "$0")/api_helpers.sh"
-source "$(dirname "$0")/scripts/helpers.sh"
+source "./secrets-manager-integration-environment-bootstrap/scripts/helpers.sh"
+
+# Load the deployment-specific secret prefix
+load_secret_prefix
 
 DEFINITION_ID=""
 PIPELINE_ID=""
@@ -28,7 +31,8 @@ function test_single_secret_retrieval_should_succeed() {
     expected_secret_value="HelloFromFirstSecret"
 
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/firstSecret|FIRST_SECRET" "$CONJUR_URL" "$TEST_ORB")
+	echo "CONJUR URL: $CONJUR_URL"
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "$SECRET_PREFIX/firstSecret|FIRST_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 	wait_for_workflow "$WORKFLOW_ID" 6 10 "success"
 
@@ -57,7 +61,7 @@ EOF
 	)
 
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/firstSecret|FIRST_SECRET;circleci/secondSecret|SECOND_SECRET" "$CONJUR_URL" "$TEST_ORB")
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "$SECRET_PREFIX/firstSecret|FIRST_SECRET;$SECRET_PREFIX/secondSecret|SECOND_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 
 	wait_for_workflow "$WORKFLOW_ID" 6 10 "success"
@@ -80,7 +84,7 @@ EOF
 
 function test_non_existing_secrets_retrieval_should_fail() {
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/nonExistingSecret|NON_EXISTING_SECRET" "$CONJUR_URL" "$TEST_ORB")
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "$SECRET_PREFIX/nonExistingSecret|NON_EXISTING_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 
 	wait_for_workflow "$WORKFLOW_ID" 6 10 "failed"
@@ -92,16 +96,22 @@ function test_non_existing_secrets_retrieval_should_fail() {
 
 	assertContains "$output" "::debug Authenticate via Authn-JWT"
  	assertContains "$output" "Authentication Successful."
-	assertContains "$output" "variable:circleci/nonExistingSecret is empty or not found"
+	assertContains "$output" "variable:$SECRET_PREFIX/nonExistingSecret is empty or not found"
 	assertContains "$output" "Batch retrieval failed, falling to single secret fetch."
-	assertContains "$output" "Secret(s) are empty or not found :: circleci%2FnonExistingSecret"
+	assertContains "$output" "Secret(s) are empty or not found"
 }
 
-function test_providing_wrong_certificate_should_fail() {	
+function test_providing_wrong_certificate_should_fail() {
+	# Skip this test for SaaS deployments - they use trusted CA certificates
+	if [[ "${DEPLOYMENT_TYPE:-}" == "saas" ]]; then
+		echo "[INFO] Skipping certificate test for SaaS deployment - uses trusted CA certificates"
+		return 0
+	fi
+	
 	add_or_update_environment_variable "CONJUR_CERTIFICATE_B64" "$CONJUR_CERTIFICATE_INVALID_B64"
 
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/firstSecret|FIRST_SECRET" "$CONJUR_URL" "$TEST_ORB")
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "$SECRET_PREFIX/firstSecret|FIRST_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 
 	wait_for_workflow "$WORKFLOW_ID" 6 10 "failed"
@@ -119,7 +129,7 @@ function test_existing_empty_secret_retrieval_should_fail() {
 	add_or_update_environment_variable "CONJUR_CERTIFICATE_B64" "$CONJUR_CERTIFICATE_VALID_B64"
 
 	DEFINITION_ID=$(get_first_definition_id)
-	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "circleci/emptySecret|FIRST_SECRET" "$CONJUR_URL" "$TEST_ORB")
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "$SECRET_PREFIX/emptySecret|FIRST_SECRET" "$CONJUR_URL" "$TEST_ORB")
 	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
 
 	wait_for_workflow "$WORKFLOW_ID" 6 10 "failed"
@@ -131,9 +141,9 @@ function test_existing_empty_secret_retrieval_should_fail() {
 
 	assertContains "$output" "::debug Authenticate via Authn-JWT"
  	assertContains "$output" "Authentication Successful."
-	assertContains "$output" "variable:circleci/emptySecret is empty or not found."
+	assertContains "$output" "variable:$SECRET_PREFIX/emptySecret is empty or not found."
 	assertContains "$output" "Batch retrieval failed, falling to single secret fetch."
- 	assertContains "$output" "Secret(s) are empty or not found :: circleci%2FemptySecret"
+ 	assertContains "$output" "Secret(s) are empty or not found"
 }
 
 # There is a bug currently and the host access denial is not working as expected.

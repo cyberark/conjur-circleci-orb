@@ -1,3 +1,0 @@
-- !grant
-  role: !group conjur/authn-jwt/circleci/apps
-  member: !host circleci/644db9c2-4587-46c1-a53b-8d0889d71b1f
