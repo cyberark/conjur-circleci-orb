@@ -10,3 +10,7 @@
 [submodule "test/helpers/mocks"]
 	path = test/helpers/mocks
 	url = https://github.com/jasonkarns/bats-mock
+[submodule "secrets-manager-integration-environment-bootstrap"]
+	path = secrets-manager-integration-environment-bootstrap
+	url = https://github.cyberng.com/Conjur-Enterprise/secrets-manager-integration-environment-bootstrap.git
+	branch = main
