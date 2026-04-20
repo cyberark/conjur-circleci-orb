@@ -1,5 +1,5 @@
 #!/usr/bin/env groovy
-@Library('product-pipelines-shared-library') _
+@Library(['product-pipelines-shared-library', 'conjur-enterprise-sharedlib']) _
 
 // Automated release, promotion and dependencies
 properties([
@@ -260,6 +260,7 @@ pipeline {
 
   post {
     always {
+      sendNotification(channel: '#conjur-integrations-ci-notifications')
       releaseInfraPoolAgent()
     }
   }
