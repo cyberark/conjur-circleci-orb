@@ -260,7 +260,7 @@ pipeline {
 
   post {
     always {
-      sendNotification(channel: '#conjur-integrations-ci-notifications')
+//       sendNotification(channel: '#conjur-integrations-ci-notifications')
       releaseInfraPoolAgent()
     }
   }
