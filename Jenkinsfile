@@ -260,7 +260,9 @@ pipeline {
 
   post {
     always {
-//       sendNotification(channel: '#conjur-integrations-ci-notifications')
+      // Resolve ownership issue before running notifications
+      sh 'git config --global --add safe.directory ${PWD}'
+      sendNotification(channel: '#conjur-integrations-ci-notifications')
       releaseInfraPoolAgent()
     }
   }
