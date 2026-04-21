@@ -1,5 +1,5 @@
 #!/usr/bin/env groovy
-@Library('product-pipelines-shared-library') _
+@Library(['product-pipelines-shared-library', 'conjur-enterprise-sharedlib']) _
 
 // Automated release, promotion and dependencies
 properties([
@@ -260,6 +260,9 @@ pipeline {
 
   post {
     always {
+      // Resolve ownership issue before running notifications
+      sh 'git config --global --add safe.directory ${PWD}'
+      sendNotification(channel: '#conjur-integrations-ci-notifications')
       releaseInfraPoolAgent()
     }
   }
