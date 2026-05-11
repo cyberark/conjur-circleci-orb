@@ -15,15 +15,21 @@ TEST_ORB=""
 
 function oneTimeSetUp() {
 	# Read published orb version if available
-	if [[ -f "orbversion/.published_orb_version" ]]; then
-		TEST_ORB=$(cat "orbversion/.published_orb_version")
-		echo "Testing with published orb: $TEST_ORB"
-	else
-		echo "No published orb version found, using default"
-	fi
-	CONJUR_CERTIFICATE_VALID_B64=$(base64 < ./conjur.pem | tr -d '\n')
-	CONJUR_CERTIFICATE_INVALID_B64=$(base64 < ./invalid_cert.pem | tr -d '\n')
-	add_or_update_environment_variable "CONJUR_CERTIFICATE_B64" "$CONJUR_CERTIFICATE_VALID_B64"
+  if [[ -f "orbversion/.published_orb_version" ]]; then
+    TEST_ORB=$(cat "orbversion/.published_orb_version")
+    echo "Testing with published orb: $TEST_ORB"
+  else
+    echo "No published orb version found, using default"
+  fi
+
+  local cert_path="./conjur.pem"
+  if [[ -f "./output-integration/conjur.pem" ]]; then
+    cert_path="./output-integration/conjur.pem"
+  fi
+
+  CONJUR_CERTIFICATE_VALID_B64=$(base64 < "$cert_path" | tr -d '\n')
+  CONJUR_CERTIFICATE_INVALID_B64=$(base64 < ./invalid_cert.pem | tr -d '\n')
+  add_or_update_environment_variable "CONJUR_CERTIFICATE_B64" "$CONJUR_CERTIFICATE_VALID_B64"
 }
 
 function test_single_secret_retrieval_should_succeed() {

@@ -28,20 +28,18 @@ cleanup() {
 trap cleanup EXIT ERR INT
 
 OUTPUT_DIR="./output-integration"
-
 mkdir -p "$OUTPUT_DIR"
+export OUTPUT_DIR
 
-./$SUBMODULE_BASE_DIR/scripts/setup_integration_env.sh "$DEPLOYMENT_TYPE" "$INTEGRATION_TYPE"
+./$SUBMODULE_BASE_DIR/scripts/setup_integration_env.sh "$DEPLOYMENT_TYPE" "$INTEGRATION_TYPE" "$OUTPUT_DIR"
 
 docker build -f dockerintegration/Dockerfile.integration -t integration-test .
-docker run  --rm \
-	-v "$OUTPUT_DIR:/conjur-circleci-orb/output-integration" \
-	-v "$(pwd)/$SUBMODULE_BASE_DIR/configs:/configs:rw" \
-	-e "CONJUR_URL=${CONJUR_URL}" \
-	-e "DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" \
-	-e "API_KEY=${API_KEY}" \
-	-e "PROJECT_ID=${PROJECT_ID}" \
-	-e "CONTEXT_ID=${CONTEXT_ID}" \
-	integration-test \
-	bash -c "test/integration/retrieve_secret_integration_tests.sh && /conjur-circleci-orb/bin/generate_junit_report.sh integration > /conjur-circleci-orb/output-integration/junit.xml"
-# TODO: Update the generate_junit_report script to include integration test reports as well
+docker run --rm \
+  -v "$OUTPUT_DIR:/conjur-circleci-orb/output-integration" \
+  -e "CONJUR_URL=${CONJUR_URL}" \
+  -e "DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" \
+  -e "API_KEY=${API_KEY}" \
+  -e "PROJECT_ID=${PROJECT_ID}" \
+  -e "CONTEXT_ID=${CONTEXT_ID}" \
+  integration-test \
+  bash -c "test/integration/retrieve_secret_integration_tests.sh && /conjur-circleci-orb/bin/generate_junit_report.sh integration > /conjur-circleci-orb/output-integration/junit.xml"
