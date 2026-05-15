@@ -1,6 +1,18 @@
 #!/bin/bash
 # Conjur Secret Retrieval for CirclCI Orb conjur-circleci
 
+# If the entire value is exactly ${VAR_NAME} (POSIX-style env identifier), return the
+# value of that variable. Otherwise return the string unchanged.
+function resolve_param_value() {
+	local input="$1"
+	if [[ "${input}" =~ ^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$ ]]; then
+		local _ref="${BASH_REMATCH[1]}"
+		printf '%s' "${!_ref}"
+	else
+		printf '%s' "${input}"
+	fi
+}
+
 function main() {
 	check_parameter "CONJUR_APPLIANCE_URL" "${PARAM_APPLIANCE_URL}"
 	check_parameter "CONJUR_ACCOUNT" "${PARAM_ACCOUNT}"
@@ -9,9 +21,10 @@ function main() {
 
 	CONJUR_SECRETS_ID="${PARAM_SECRETS_ID}"
 	CONJUR_CERTIFICATE="${PARAM_CERTIFICATE}"
-	CONJUR_APPLIANCE_URL=$(eval echo "${PARAM_APPLIANCE_URL}")
-	CONJUR_ACCOUNT=$(eval echo "${PARAM_ACCOUNT}")
-	CONJUR_SERVICE_ID=$(eval echo "${PARAM_SERVICE_ID}")
+
+	CONJUR_APPLIANCE_URL="$(resolve_param_value "${PARAM_APPLIANCE_URL}")"
+	CONJUR_ACCOUNT="$(resolve_param_value "${PARAM_ACCOUNT}")"
+	CONJUR_SERVICE_ID="$(resolve_param_value "${PARAM_SERVICE_ID}")"
 
 	if [[ -z ${CIRCLE_OIDC_TOKEN_V2} ]]; then
 		echo "OIDC Token cannot be found. A CircleCI context must be specified."
@@ -277,7 +290,7 @@ function fetch_secret() {
 	fi
 }
 
-TEST_MODE=$(eval echo "${PARAM_TEST_MODE}")
+TEST_MODE="$(resolve_param_value "${PARAM_TEST_MODE}")"
 
 if [[ ${TEST_MODE} == "false" ]]; then
 	main "$@"
