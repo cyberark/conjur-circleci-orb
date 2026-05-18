@@ -361,6 +361,72 @@ test_check_parameter_valid_value() {
   assertContains "$result" ""
 }
 
+# resolve_param_value: no command execution for literals containing $(...)
+test_resolve_param_value_command_substitution_stays_literal() {
+  local resolved
+  resolved="$(resolve_param_value 'myacct$(id)')"
+  assertEquals 'myacct$(id)' "$resolved"
+}
+
+# Exact ${VAR} only: one-level indirect expansion from environment
+test_resolve_param_value_indirect_expansion() {
+  export ORB_TEST_CONJUR_URL='https://resolved-from-env.example'
+  local resolved
+  resolved="$(resolve_param_value '${ORB_TEST_CONJUR_URL}')"
+  assertEquals 'https://resolved-from-env.example' "$resolved"
+  unset ORB_TEST_CONJUR_URL
+}
+
+test_resolve_param_value_plain_string_unchanged() {
+  local resolved
+  resolved="$(resolve_param_value 'https://literal-url.example')"
+  assertEquals 'https://literal-url.example' "$resolved"
+}
+
+test_resolve_param_value_braced_not_whole_string_unchanged() {
+  local resolved
+  resolved="$(resolve_param_value 'prefix${VAR}suffix')"
+  assertEquals 'prefix${VAR}suffix' "$resolved"
+}
+
+# Unset target: indirect expansion yields empty (not fallback to literal ${NAME})
+test_resolve_param_value_unset_variable_empty() {
+  unset ORB_RESOLVE_PARAM_UNSET_TEST_7f3a2b1c
+  local resolved
+  resolved="$(resolve_param_value '${ORB_RESOLVE_PARAM_UNSET_TEST_7f3a2b1c}')"
+  assertEquals '' "$resolved"
+}
+
+# Name must match POSIX identifier after ${ — digit-first is not expanded
+test_resolve_param_value_invalid_name_digit_prefix_unchanged() {
+  local resolved
+  resolved="$(resolve_param_value '${9x}')"
+  assertEquals '${9x}' "$resolved"
+}
+
+# Only braced whole-token ${VAR} is supported, not unbraced $VAR
+test_resolve_param_value_unbraced_unchanged() {
+  local resolved
+  resolved="$(resolve_param_value '$HOME')"
+  assertEquals '$HOME' "$resolved"
+}
+
+# Variable set but empty: still empty expansion
+test_resolve_param_value_variable_empty_string() {
+  export ORB_RESOLVE_EMPTY_STR=''
+  local resolved
+  resolved="$(resolve_param_value '${ORB_RESOLVE_EMPTY_STR}')"
+  assertEquals '' "$resolved"
+  unset ORB_RESOLVE_EMPTY_STR
+}
+
+# Malformed / empty brace body: no match, passthrough
+test_resolve_param_value_empty_braces_unchanged() {
+  local resolved
+  resolved="$(resolve_param_value '${}')"
+  assertEquals '${}' "$resolved"
+}
+
 # Test the `urlencode` function
 test_urlencode_basic() {
   result=$(urlencode "hello world")
