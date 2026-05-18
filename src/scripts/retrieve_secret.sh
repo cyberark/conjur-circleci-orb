@@ -231,7 +231,7 @@ function set_environment_var() {
 		if [[ ${PARAM_INTEGR} == "true" ]]; then
 			echo "Secret fetched successfully. fetched :: $value"
 		else
-			echo "export ${secretMulti[${secret_key}]}='${value}'" >>"${BASH_ENV}"
+			printf 'export %s=%q\n' "${secretMulti[${secret_key}]}" "${value}" >>"${BASH_ENV}"
 			echo "Secret fetched successfully.  Environment variable ${secretMulti[${secret_key}]} set. "
 		fi
 		IFS=','
