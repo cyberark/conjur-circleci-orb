@@ -486,6 +486,45 @@ test_array_secrets_trailing_semicolon() {
   assertContains "${SECRETS[0]}" "secret1|ENV1"
 }
 
+# Secret values must not execute shell when BASH_ENV is sourced (report-style payloads).
+test_set_environment_var_percent_q_snippet_safe_to_source() {
+  local report_payload="x'; export INJECTED_F004=pwned #"
+  export BASH_ENV="/tmp/.bash_env_pct_$$"
+  rm -f "${BASH_ENV}"
+  unset MY_SECRET INJECTED_F004
+  malicious_ran=""
+  malicious() { malicious_ran=yes; }
+  export -f malicious
+
+  # Exact CVE payload on the line we write (printf %q), bypassing jq/comma/= parsing.
+  printf 'export %s=%q\n' MY_SECRET "${report_payload}" >>"${BASH_ENV}"
+  # shellcheck disable=SC1090
+  source "${BASH_ENV}"
+  assertEquals "" "${malicious_ran}"
+  assertEquals "" "${INJECTED_F004:-}"
+  assertEquals "${report_payload}" "${MY_SECRET}"
+
+  # Through set_environment_var: no extra '=' in the value (parser uses equal_split[1] only).
+  local integr_payload="x'; export INJECTED_F004; #"
+  rm -f "${BASH_ENV}"
+  unset MY_SECRET INJECTED_F004
+  malicious_ran=""
+  secretsVal=("a:MY_SECRET=${integr_payload}")
+  PARAM_INTEGR="false"
+  declare -A secretMulti
+  secretMulti[MY_SECRET]=MY_SECRET
+  urlencode() { echo "$1"; }
+  set_environment_var
+  # shellcheck disable=SC1090
+  source "${BASH_ENV}"
+  assertEquals "" "${malicious_ran}"
+  assertEquals "" "${INJECTED_F004:-}"
+  assertEquals "${integr_payload}" "${MY_SECRET}"
+
+  unset MY_SECRET INJECTED_F004
+  unset -f malicious urlencode
+  rm -f "${BASH_ENV}"
+}
 
 # Test the `set_environment_var` function
 test_set_environment_var_param_integr_true() {
