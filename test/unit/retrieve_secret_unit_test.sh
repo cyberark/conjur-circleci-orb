@@ -9,6 +9,8 @@ export CONJUR_CERTIFICATE="dummy-cert"
 export CONJUR_ACCOUNT="testaccount"
 export token="fake-token"
 export PARAM_APPLIANCE_URL="https://fake-conjur.com"
+export PARAM_ALLOW_INSECURE_HTTP="false"
+export ALLOW_INSECURE_HTTP="false"
 export PARAM_ACCOUNT="my-account"
 export PARAM_SERVICE_ID="my-service"
 export PARAM_SECRETS_ID="secret1|MY_SECRET"
@@ -346,6 +348,162 @@ test_single_secret_fetch_malformed_token() {
   output=$(single_secret_fetch 2>&1)
 
   assertContains "$output" "::error::Malformed authorization token"
+}
+
+# Test validate_appliance_url
+test_validate_appliance_url_rejects_http() {
+  output=$(validate_appliance_url "http://conjur.internal.example" "false" 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "uses http://"
+  assertContains "${output}" "allow_insecure_http"
+}
+
+test_validate_appliance_url_accepts_https() {
+  validate_appliance_url "https://conjur.example.com" "false"
+  assertEquals 0 $?
+}
+
+test_validate_appliance_url_accepts_https_with_insecure_flag_no_warning() {
+  output=$(validate_appliance_url "https://conjur.example.com" "true" 2>&1)
+  status=$?
+
+  assertEquals 0 "${status}"
+  assertEquals "" "${output}"
+}
+
+test_validate_appliance_url_rejects_empty_url() {
+  output=$(validate_appliance_url "" "false" 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "must use https://"
+}
+
+test_validate_appliance_url_rejects_whitespace() {
+  output=$(validate_appliance_url "https://conjur.example.com/path with space" "false" 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "must not contain whitespace"
+}
+
+test_validate_appliance_url_allow_insecure_warns() {
+  output=$(validate_appliance_url "http://conjur.internal.example" "true" 2>&1)
+  status=$?
+
+  assertEquals 0 "${status}"
+  assertContains "${output}" "::warning::allow_insecure_http is enabled"
+}
+
+test_validate_appliance_url_rejects_non_http_scheme() {
+  output=$(validate_appliance_url "ftp://conjur.internal.example" "true" 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "must use https://"
+}
+
+test_validate_appliance_url_resolved_env_http_rejected() {
+  export ORB_TEST_HTTP_URL='http://resolved-insecure.example'
+  ALLOW_INSECURE_HTTP="false"
+  CONJUR_APPLIANCE_URL="$(resolve_param_value '${ORB_TEST_HTTP_URL}')"
+  output=$(validate_appliance_url "${CONJUR_APPLIANCE_URL}" "${ALLOW_INSECURE_HTTP}" 2>&1)
+  status=$?
+
+  unset ORB_TEST_HTTP_URL
+  assertEquals 1 "${status}"
+  assertContains "${output}" "uses http://"
+}
+
+test_main_rejects_http_appliance_url() {
+  export CIRCLE_OIDC_TOKEN_V2="valid-oidc-token"
+  export PARAM_APPLIANCE_URL="http://conjur.internal.example"
+  export PARAM_ALLOW_INSECURE_HTTP="false"
+
+  output=$(main 2>&1)
+  status=$?
+
+  assertEquals 1 "${status}"
+  assertContains "${output}" "uses http://"
+  assertNotContains "${output}" "Authenticate via Authn-JWT" "main must fail before authentication"
+}
+
+test_network_client_enforces_https_curl_options() {
+  CONJUR_APPLIANCE_URL="https://fake-conjur.com"
+  ALLOW_INSECURE_HTTP="false"
+  export token="existing-token"
+  CURL_INVOCATION=()
+
+  curl() {
+    CURL_INVOCATION=("$@")
+    echo "mocked-response"
+  }
+
+  network_client "GET" "https://fake-conjur.com/secrets"
+  unset -f curl
+
+  assertContains "${CURL_INVOCATION[*]}" "--proto https"
+  assertContains "${CURL_INVOCATION[*]}" "--proto-redir https"
+  assertContains "${CURL_INVOCATION[*]}" "--ssl-reqd"
+  assertContains "${CURL_INVOCATION[*]}" "-sS"
+}
+
+test_network_client_omits_https_curl_options_when_insecure_allowed() {
+  CONJUR_APPLIANCE_URL="http://conjur.internal.example"
+  ALLOW_INSECURE_HTTP="true"
+  export token="existing-token"
+  CURL_INVOCATION=()
+
+  curl() {
+    CURL_INVOCATION=("$@")
+    echo "mocked-response"
+  }
+
+  network_client "GET" "http://conjur.internal.example/secrets"
+  unset -f curl
+
+  assertNotContains "${CURL_INVOCATION[*]}" "--proto https"
+  assertNotContains "${CURL_INVOCATION[*]}" "--ssl-reqd"
+}
+
+test_network_client_keeps_https_curl_options_when_flag_true_with_https_url() {
+  CONJUR_APPLIANCE_URL="https://conjur.internal.example"
+  ALLOW_INSECURE_HTTP="true"
+  export token="existing-token"
+  CURL_INVOCATION=()
+
+  curl() {
+    CURL_INVOCATION=("$@")
+    echo "mocked-response"
+  }
+
+  network_client "GET" "https://conjur.internal.example/secrets"
+  unset -f curl
+
+  assertContains "${CURL_INVOCATION[*]}" "--proto https"
+  assertContains "${CURL_INVOCATION[*]}" "--proto-redir https"
+  assertContains "${CURL_INVOCATION[*]}" "--ssl-reqd"
+}
+
+test_network_client_enforces_https_curl_options_for_http_url_without_flag() {
+  CONJUR_APPLIANCE_URL="http://conjur.internal.example"
+  ALLOW_INSECURE_HTTP="false"
+  export token="existing-token"
+  CURL_INVOCATION=()
+
+  curl() {
+    CURL_INVOCATION=("$@")
+    echo "mocked-response"
+  }
+
+  network_client "GET" "http://conjur.internal.example/secrets"
+  unset -f curl
+
+  assertContains "${CURL_INVOCATION[*]}" "--proto https"
+  assertContains "${CURL_INVOCATION[*]}" "--proto-redir https"
+  assertContains "${CURL_INVOCATION[*]}" "--ssl-reqd"
 }
 
 # Test the `check_parameter` function

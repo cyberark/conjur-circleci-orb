@@ -107,6 +107,34 @@ function test_non_existing_secrets_retrieval_should_fail() {
 	assertContains "$output" "Secret(s) are empty or not found"
 }
 
+function test_http_appliance_url_without_flag_should_fail() {
+	# Real customer flow: only conjur_url is overridden to http://; allow_insecure_http is not set in API,
+	# integration config, or the orb step (orb command default false) -> rejected before authentication.
+	# Client-side URL validation is deployment-agnostic; run once on OSS to avoid extra pipeline runs.
+	if [[ "${DEPLOYMENT_TYPE:-}" != "oss" ]]; then
+		echo "[INFO] Skipping HTTP URL validation integration test (only runs for DEPLOYMENT_TYPE=oss)."
+		return 0
+	fi
+
+	local http_url="${CONJUR_URL/https:\/\//http:\/\/}"
+	echo "[INFO] HTTP integration test URL: ${http_url} (allow_insecure_http omitted; orb default applies)"
+
+	DEFINITION_ID=$(get_first_definition_id)
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "$SECRET_PREFIX/firstSecret|FIRST_SECRET" "$http_url" "$TEST_ORB")
+	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
+
+	wait_for_workflow "$WORKFLOW_ID" 6 10 "failed"
+
+	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
+
+	local output
+	output=$(get_step_output_by_name "$JOB_ID" "Fetch Secret")
+
+	assertContains "$output" "uses http://"
+	assertContains "$output" "allow_insecure_http"
+	assertNotContains "$output" "Authentication Successful."
+}
+
 function test_providing_wrong_certificate_should_fail() {
 	# Skip this test for SaaS deployments - they use trusted CA certificates
 	if [[ "${DEPLOYMENT_TYPE:-}" == "saas" ]]; then

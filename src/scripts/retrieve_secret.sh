@@ -25,6 +25,9 @@ function main() {
 	CONJUR_APPLIANCE_URL="$(resolve_param_value "${PARAM_APPLIANCE_URL}")"
 	CONJUR_ACCOUNT="$(resolve_param_value "${PARAM_ACCOUNT}")"
 	CONJUR_SERVICE_ID="$(resolve_param_value "${PARAM_SERVICE_ID}")"
+	ALLOW_INSECURE_HTTP="$(resolve_param_value "${PARAM_ALLOW_INSECURE_HTTP:-false}")"
+
+	validate_appliance_url "${CONJUR_APPLIANCE_URL}" "${ALLOW_INSECURE_HTTP}"
 
 	if [[ -z ${CIRCLE_OIDC_TOKEN_V2} ]]; then
 		echo "OIDC Token cannot be found. A CircleCI context must be specified."
@@ -47,6 +50,34 @@ function check_parameter() {
 		echo "The ${param_name} is not found. Please add the ${param_name} before continuing."
 		exit 1
 	fi
+}
+
+function validate_appliance_url() {
+	local url="$1"
+	local allow_insecure_http="$2"
+
+	if [[ "${url}" =~ [[:space:]] ]]; then
+		echo "ERROR: CONJUR_APPLIANCE_URL must not contain whitespace."
+		exit 1
+	fi
+
+	case "${url}" in
+	https://*)
+		return 0
+		;;
+	http://*)
+		if [[ "${allow_insecure_http}" == "true" ]]; then
+			echo "::warning::allow_insecure_http is enabled: Conjur traffic is not required to use HTTPS. OIDC tokens and secrets may be sent in cleartext."
+			return 0
+		fi
+		echo "ERROR: CONJUR_APPLIANCE_URL uses http:// (received: ${url}). Set allow_insecure_http to true to permit plaintext HTTP. Plaintext HTTP exposes OIDC tokens and secrets on the network."
+		exit 1
+		;;
+	*)
+		echo "ERROR: CONJUR_APPLIANCE_URL must use https:// (received: ${url}). Plaintext HTTP exposes OIDC tokens and secrets on the network."
+		exit 1
+		;;
+	esac
 }
 
 function urlencode() {
@@ -102,7 +133,11 @@ function network_client() {
 	local data=""
 	local response
 
-	declare -a common_curl_options=()
+	declare -a common_curl_options=(-sS)
+
+	if [[ "${CONJUR_APPLIANCE_URL}" != http://* || "${ALLOW_INSECURE_HTTP}" != "true" ]]; then
+		common_curl_options+=(--proto https --proto-redir https --ssl-reqd)
+	fi
 
 	if [[ -n ${CONJUR_CERTIFICATE} ]]; then
 		common_curl_options+=("--cacert" "conjur_${CONJUR_ACCOUNT}.pem")

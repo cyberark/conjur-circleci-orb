@@ -65,14 +65,15 @@ orbs:
 5. Setting Conjur Authentication Configuration Parameter:
 
 Required:
-*	url or CONJUR_APPLIANCE_URL - the path to your Conjur instance endpoint. e.g. https://conjur.cyberark.com:8443
-* account or CONJUR_ACCOUNT - the account configured for the Conjur instance during deployment.
-* service_id or CONJUR_SERVICE_ID - the ID of Authn-JWT at Conjur
+*	url or CONJUR_APPLIANCE_URL - the HTTPS URL for your Secrets Manager appliance endpoint (must begin with `https://`). e.g. https://conjur.cyberark.com:8443
+* account or CONJUR_ACCOUNT - the account configured for the Secrets Manager instance during deployment.
+* service_id or CONJUR_SERVICE_ID - the ID of Authn-JWT at Secrets Manager
 *	secrets - a semi-colon delimited list of secrets to fetch. 
 
 Optional:
 
 * certificate - if using a self-signed certificate, provide the contents for validated SSL.
+* allow_insecure_http - when `true`, permits `http://` appliance URLs and logs a warning (required for plaintext HTTP; not recommended for production).
 
 Secrets Syntax for .circleci/config.yml file:
 
