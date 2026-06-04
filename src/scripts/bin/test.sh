@@ -168,7 +168,6 @@ function runFetchConjur() {
       export PARAM_ACCOUNT='conjur'
       export PARAM_SECRETS_ID="data/circleci/apps/safe/secret1;data/circleci/apps/safe/secret2"
       export PARAM_TEST_MODE="false"
-      export PARAM_INTEGR="true"
     ;;
     esac
 

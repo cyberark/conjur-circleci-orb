@@ -228,12 +228,8 @@ function set_environment_var() {
 		read -ra colon_split <<<"${key}"
 		secret_key=$(urlencode "${colon_split[${#colon_split[@]} - 1]}")
 
-		if [[ ${PARAM_INTEGR} == "true" ]]; then
-			echo "Secret fetched successfully. fetched :: $value"
-		else
-			printf 'export %s=%q\n' "${secretMulti[${secret_key}]}" "${value}" >>"${BASH_ENV}"
-			echo "Secret fetched successfully.  Environment variable ${secretMulti[${secret_key}]} set. "
-		fi
+		printf 'export %s=%q\n' "${secretMulti[${secret_key}]}" "${value}" >>"${BASH_ENV}"
+		echo "Secret fetched successfully.  Environment variable ${secretMulti[${secret_key}]} set. "
 		IFS=','
 	done
 	IFS=$' \t\n'

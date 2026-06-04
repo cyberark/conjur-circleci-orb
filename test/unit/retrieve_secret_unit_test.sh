@@ -510,7 +510,6 @@ test_set_environment_var_percent_q_snippet_safe_to_source() {
   unset MY_SECRET INJECTED_F004
   malicious_ran=""
   secretsVal=("a:MY_SECRET=${integr_payload}")
-  PARAM_INTEGR="false"
   declare -A secretMulti
   secretMulti[MY_SECRET]=MY_SECRET
   urlencode() { echo "$1"; }
@@ -527,19 +526,34 @@ test_set_environment_var_percent_q_snippet_safe_to_source() {
 }
 
 # Test the `set_environment_var` function
-test_set_environment_var_param_integr_true() {
-  secretsVal=("secret1:MY_SECRET=value1,secret2:MY_SECRET=value2")
+test_set_environment_var_never_logs_secret_value() {
+  secretsVal=("prefix:secret1=value1,prefix:secret2=value2")
   PARAM_INTEGR="true"
-  
+  export BASH_ENV="/tmp/.bash_env_no_leak_$$"
+  rm -f "${BASH_ENV}"
+  declare -A secretMulti
+  secretMulti=( ["secret1"]=FIRST_SECRET ["secret2"]=SECOND_SECRET )
+
+  urlencode() {
+    echo "$1"
+  }
+
   output=$(set_environment_var 2>&1)
-  
-  assertContains "${output}" "Secret fetched successfully. fetched :: value1"
-  assertContains "${output}" "Secret fetched successfully. fetched :: value2"
+
+  assertNotContains "${output}" "value1"
+  assertNotContains "${output}" "value2"
+  assertContains "${output}" "Environment variable FIRST_SECRET set."
+  assertContains "${output}" "Environment variable SECOND_SECRET set."
+  # shellcheck disable=SC1090
+  source "${BASH_ENV}"
+  assertEquals "value1" "${FIRST_SECRET}"
+  assertEquals "value2" "${SECOND_SECRET}"
+  rm -f "${BASH_ENV}"
+  unset -f urlencode
 }
 
 test_set_environment_var_empty_secrets() {
   secretsVal=()
-  PARAM_INTEGR="false"
   export BASH_ENV="/tmp/.bash_env_mock"
 
   output=$(set_environment_var 2>&1)
@@ -549,7 +563,6 @@ test_set_environment_var_empty_secrets() {
 
 test_set_environment_var_multiple_secrets() {
   secretsVal=("secret1:MY_SECRET=value1,secret2:MY_SECRET=value2")
-  PARAM_INTEGR="false"
   secretMulti=("MY_SECRET"="MY_SECRET")
   export BASH_ENV="/tmp/.bash_env_mock"
 
@@ -568,7 +581,6 @@ test_fetch_secret_valid_input() {
   SECRETS=("secret1:MY_SECRET=value1,secret2:MY_SECRET=value2")
   CONJUR_ACCOUNT="my_conjur_account"
   secretVal="value1,value2"
-  PARAM_INTEGR="false"
   
   urlencode() { echo "$1"; }
   multiple_secrets_fetch() { secretVal="value1,value2"; }
@@ -584,7 +596,6 @@ test_fetch_secret_malformed_token() {
   SECRETS=("secret1:MY_SECRET=value1")
   CONJUR_ACCOUNT="my_conjur_account"
   secretVal="Malformed authorization token"
-  PARAM_INTEGR="false"
   
   urlencode() { echo "$1"; }
   multiple_secrets_fetch() { secretVal="Malformed authorization token"; }
@@ -599,7 +610,6 @@ test_fetch_secret_no_secrets() {
   SECRETS=()
   CONJUR_ACCOUNT="my_conjur_account"
   secretVal="value1,value2"
-  PARAM_INTEGR="false"
   
   urlencode() { echo "$1"; }
   multiple_secrets_fetch() { secretVal="value1,value2"; }
