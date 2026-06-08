@@ -27,5 +27,5 @@ services:
       PARAM_CERTIFICATE:
       CIRCLE_OIDC_TOKEN_V2:
       PARAM_TEST_MODE: "false"
-      PARAM_INTEGR: "true"
+      BASH_ENV: /tmp/circleci_bash_env
   
