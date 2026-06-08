@@ -16,6 +16,9 @@ parameters:
   conjur_orb:
     type: string
     default: "cyberark/conjur-circleci-orb@0.0.2"
+  allow_insecure_http:
+    type: boolean
+    default: false
 
 orbs:
   conjur-circleci-orb: << pipeline.parameters.conjur_orb >>
@@ -38,6 +41,7 @@ jobs:
           secrets: << pipeline.parameters.conjur_secrets >>
           service_id: << pipeline.parameters.conjur_service_id >>
           url: << pipeline.parameters.conjur_url >>
+          allow_insecure_http: << pipeline.parameters.allow_insecure_http >>
           certificate: $PARAM_CERTIFICATE
 
       - run:

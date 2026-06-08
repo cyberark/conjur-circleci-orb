@@ -13,6 +13,43 @@ CONJUR_CERTIFICATE_VALID_B64=""
 CONJUR_CERTIFICATE_INVALID_B64=""
 TEST_ORB=""
 
+# Only used by test_http_appliance_url_with_flag_should_succeed — triggers pipeline with allow_insecure_http: true.
+function trigger_circleci_pipeline_allow_insecure_http() {
+	local definition_id="$1"
+	local config_branch="$2"
+	local checkout_branch="$3"
+	local conjur_secrets="$4"
+	local conjur_url="$5"
+	local conjur_orb="${6:-cyberark/conjur-circleci-orb@0.0.2}"
+
+	local json_data
+	json_data=$(cat <<EOF
+{
+	"definition_id": "${definition_id}",
+	"config": {
+		"branch": "${config_branch}"
+	},
+	"checkout": {
+		"branch": "${checkout_branch}"
+	},
+	"parameters": {
+		"conjur_secrets": "${conjur_secrets}",
+		"conjur_url": "${conjur_url}",
+		"conjur_orb": "${conjur_orb}",
+		"allow_insecure_http": true
+	}
+}
+EOF
+	)
+
+	local response
+	response=$(curl -X POST "$CIRCLECI_API_BASE_V2/project/$CIRCLECI_PROJECT_SLUG/pipeline/run" \
+		-H "Circle-Token: $CIRCLECI_TOKEN" \
+		-H "Content-Type: application/json" \
+		--data "$json_data")
+	echo "$response" | jq -r '.id'
+}
+
 function oneTimeSetUp() {
 	# Read published orb version if available
   if [[ -f "orbversion/.published_orb_version" ]]; then
@@ -133,6 +170,40 @@ function test_http_appliance_url_without_flag_should_fail() {
 	assertContains "$output" "uses http://"
 	assertContains "$output" "allow_insecure_http"
 	assertNotContains "$output" "Authentication Successful."
+}
+
+function test_http_appliance_url_with_flag_passes_url_validation() {
+	# Verifies that allow_insecure_http: true (boolean orb param) reaches the script as the
+	# string "true", so an http:// appliance URL is permitted at validation time instead of
+	# being rejected. We assert only the validation-level behavior (warning emitted, no
+	# scheme-rejection error); we do NOT assert end-to-end auth, since that depends on the
+	# http endpoint being reachable, which is out of scope for this check.
+	# Client-side validation is deployment-agnostic; run once on OSS to avoid extra runs.
+	if [[ "${DEPLOYMENT_TYPE:-}" != "oss" ]]; then
+		echo "[INFO] Skipping HTTP allow_insecure_http integration test (only runs for DEPLOYMENT_TYPE=oss)."
+		return 0
+	fi
+
+	local http_url="http://conjur-leader-1.mycompany.local"
+	echo "[INFO] HTTP integration test URL: ${http_url} (allow_insecure_http: true)"
+
+	DEFINITION_ID=$(get_first_definition_id)
+	PIPELINE_ID=$(trigger_circleci_pipeline_allow_insecure_http "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "$SECRET_PREFIX/firstSecret|FIRST_SECRET" "$http_url" "$TEST_ORB")
+	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
+
+	wait_for_workflow "$WORKFLOW_ID" 6 10 "success"
+
+	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
+
+	local output
+	output=$(get_step_output_by_name "$JOB_ID" "Fetch Secret")
+
+	# Assert only the behavior unique to allow_insecure_http=true: http:// is permitted
+	# (the warning is emitted and no URL-validation error is raised). This is what proves
+	# the boolean param reached bash as the string "true"; it fails if the orb env mapping
+	# loses its quotes around <<parameters.allow_insecure_http>>.
+	assertContains "$output" "::warning::allow_insecure_http is enabled"
+	assertNotContains "$output" "ERROR: CONJUR_APPLIANCE_URL uses http://"
 }
 
 function test_providing_wrong_certificate_should_fail() {
