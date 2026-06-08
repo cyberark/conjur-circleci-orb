@@ -24,6 +24,7 @@ function trigger_circleci_pipeline() {
 	local conjur_secrets="$4"
 	local conjur_url="$5"
 	local conjur_orb="${6:-cyberark/conjur-circleci-orb@0.0.2}"
+	local conjur_allow_http="${7:-false}"
 
 	# Build JSON payload for pipeline trigger
 	local json_data
@@ -39,7 +40,8 @@ function trigger_circleci_pipeline() {
 	"parameters": {
 		"conjur_secrets": "${conjur_secrets}",
 		"conjur_url": "${conjur_url}",
-		"conjur_orb": "${conjur_orb}"
+		"conjur_orb": "${conjur_orb}",
+		"conjur_allow_http": "${conjur_allow_http}"
 	}
 }
 EOF

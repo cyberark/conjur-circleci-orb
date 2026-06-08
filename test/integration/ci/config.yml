@@ -13,12 +13,12 @@ parameters:
   conjur_url:
     type: string
     default: "https://proxy"
+  conjur_allow_http:
+    type: string
+    default: "false"
   conjur_orb:
     type: string
     default: "cyberark/conjur-circleci-orb@0.0.2"
-  allow_insecure_http:
-    type: boolean
-    default: false
 
 orbs:
   conjur-circleci-orb: << pipeline.parameters.conjur_orb >>
@@ -41,9 +41,9 @@ jobs:
           secrets: << pipeline.parameters.conjur_secrets >>
           service_id: << pipeline.parameters.conjur_service_id >>
           url: << pipeline.parameters.conjur_url >>
-          allow_insecure_http: << pipeline.parameters.allow_insecure_http >>
           certificate: $PARAM_CERTIFICATE
-
+          allow_insecure_http: << pipeline.parameters.conjur_allow_http >>
+          
       - run:
           name: Save retrieved secrets
           command: |
