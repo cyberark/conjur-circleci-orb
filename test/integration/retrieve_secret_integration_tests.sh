@@ -1,9 +1,5 @@
 #!/bin/bash
 source "$(dirname "$0")/api_helpers.sh"
-source "./secrets-manager-integration-environment-bootstrap/scripts/helpers.sh"
-
-# Load the deployment-specific secret prefix
-load_secret_prefix
 
 DEFINITION_ID=""
 PIPELINE_ID=""
@@ -22,10 +18,7 @@ function oneTimeSetUp() {
     echo "No published orb version found, using default"
   fi
 
-  local cert_path="./conjur.pem"
-  if [[ -f "./output-integration/conjur.pem" ]]; then
-    cert_path="./output-integration/conjur.pem"
-  fi
+  local cert_path="${OUTPUT_DIR}/certificates/conjur.pem"
 
   CONJUR_CERTIFICATE_VALID_B64=$(base64 < "$cert_path" | tr -d '\n')
   CONJUR_CERTIFICATE_INVALID_B64=$(base64 < ./invalid_cert.pem | tr -d '\n')
