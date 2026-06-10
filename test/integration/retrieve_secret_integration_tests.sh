@@ -100,6 +100,59 @@ function test_non_existing_secrets_retrieval_should_fail() {
 	assertContains "$output" "Secret(s) are empty or not found"
 }
 
+function test_http_appliance_url_without_flag_should_fail() {
+	# http:// with allow_insecure_http defaulting to false -> URL rejected before auth.
+	# Validation is deployment-agnostic; run once on OSS.
+	if [[ "${DEPLOYMENT_TYPE:-}" != "oss" ]]; then
+		echo "[INFO] Skipping HTTP URL validation integration test (only runs for DEPLOYMENT_TYPE=oss)."
+		return 0
+	fi
+
+	local http_url="http://conjur-leader-1.mycompany.local"
+	echo "[INFO] HTTP integration test URL: ${http_url} (allow_insecure_http: false)"
+
+	DEFINITION_ID=$(get_first_definition_id)
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "$SECRET_PREFIX/firstSecret|FIRST_SECRET" "$http_url" "$TEST_ORB")
+	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
+
+	wait_for_workflow "$WORKFLOW_ID" 6 10 "failed"
+
+	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
+
+	local output
+	output=$(get_step_output_by_name "$JOB_ID" "Fetch Secret")
+
+	assertContains "$output" "ERROR: CONJUR_APPLIANCE_URL uses http:// (received: ${http_url}). Set allow_insecure_http to true to permit plaintext HTTP."
+	assertNotContains "$output" "Authentication Successful."
+}
+
+function test_http_appliance_url_with_flag_should_succeed() {
+	# http:// with allow_insecure_http=true -> permitted, fetches secret from the real Conjur OSS instance over HTTP (port 80). Run only on OSS.
+	if [[ "${DEPLOYMENT_TYPE:-}" != "oss" ]]; then
+		echo "[INFO] Skipping HTTP allow_insecure_http integration test (only runs for DEPLOYMENT_TYPE=oss)."
+		return 0
+	fi
+
+	local http_url="http://conjur-leader-1.mycompany.local"
+	echo "[INFO] HTTP integration test URL: ${http_url} (allow_insecure_http: true)"
+
+	DEFINITION_ID=$(get_first_definition_id)
+	PIPELINE_ID=$(trigger_circleci_pipeline "$DEFINITION_ID" "circleci-project-setup" "circleci-project-setup" "$SECRET_PREFIX/firstSecret|FIRST_SECRET" "$http_url" "$TEST_ORB" "true")
+	WORKFLOW_ID=$(get_workflow_id_from_pipeline "$PIPELINE_ID")
+
+	wait_for_workflow "$WORKFLOW_ID" 6 10 "success"
+
+	JOB_ID=$(get_job_number_from_workflow "$WORKFLOW_ID")
+
+	local output
+	output=$(get_step_output_by_name "$JOB_ID" "Fetch Secret")
+
+	# http:// permitted: warning emitted, no URL-validation error, secret fetched over HTTP.
+	assertContains "$output" "::warning::allow_insecure_http is enabled"
+	assertNotContains "$output" "ERROR: CONJUR_APPLIANCE_URL uses http://"
+	assertContains "$output" "Secret fetched successfully.  Environment variable FIRST_SECRET set. "
+}
+
 function test_providing_wrong_certificate_should_fail() {
 	# Skip this test for SaaS deployments - they use trusted CA certificates
 	if [[ "${DEPLOYMENT_TYPE:-}" == "saas" ]]; then
